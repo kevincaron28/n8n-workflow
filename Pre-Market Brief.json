@@ -1,0 +1,1501 @@
+{
+  "name": "Pre-Market Brief",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Stop execution if today is not a NYSE trading day\nconst now = new Date();\n\n// Weekend check (0=Sun, 6=Sat)\nconst dow = now.getUTCDay();\nif (dow === 0 || dow === 6) return [];\n\nconst year  = now.getUTCFullYear();\nconst month = String(now.getUTCMonth() + 1).padStart(2, '0');\nconst date  = String(now.getUTCDate()).padStart(2, '0');\nconst today = year + '-' + month + '-' + date;\n\n//                  Helpers                 \nfunction nthWeekday(y, m, wd, n) {\n  const d = new Date(Date.UTC(y, m, 1));\n  let count = 0;\n  while (d.getUTCMonth() === m) {\n    if (d.getUTCDay() === wd && ++count === n) return d;\n    d.setUTCDate(d.getUTCDate() + 1);\n  }\n}\nfunction lastWeekday(y, m, wd) {\n  const d = new Date(Date.UTC(y, m + 1, 0));\n  while (d.getUTCDay() !== wd) d.setUTCDate(d.getUTCDate() - 1);\n  return d;\n}\nfunction observed(y, m, day) {\n  const d  = new Date(Date.UTC(y, m, day));\n  const wd = d.getUTCDay();\n  if (wd === 6) d.setUTCDate(day - 1);\n  if (wd === 0) d.setUTCDate(day + 1);\n  return d;\n}\nfunction fmt(d) {\n  return d.getUTCFullYear() + '-' +\n    String(d.getUTCMonth() + 1).padStart(2, '0') + '-' +\n    String(d.getUTCDate()).padStart(2, '0');\n}\n// Easter / Good Friday\nfunction goodFriday(y) {\n  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4;\n  const f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3);\n  const h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4;\n  const l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);\n  const mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;\n  const easter=new Date(Date.UTC(y,mo-1,da));\n  easter.setUTCDate(easter.getUTCDate()-2);\n  return easter;\n}\n\n//                  NYSE Holidays                 \nconst holidays = new Set([\n  fmt(observed(year, 0,  1)),          // New Year's Day\n  fmt(nthWeekday(year, 0,  1, 3)),     // MLK Day                 3rd Mon Jan\n  fmt(nthWeekday(year, 1,  1, 3)),     // Presidents Day          3rd Mon Feb\n  fmt(goodFriday(year)),               // Good Friday\n  fmt(lastWeekday(year, 4,  1)),       // Memorial Day            last Mon May\n  fmt(observed(year, 5,  19)),         // Juneteenth\n  fmt(observed(year, 6,  4)),          // Independence Day\n  fmt(nthWeekday(year, 8,  1, 1)),     // Labor Day               1st Mon Sep\n  fmt(nthWeekday(year, 10, 4, 4)),     // Thanksgiving            4th Thu Nov\n  fmt(observed(year, 11, 25)),         // Christmas\n]);\n\nif (holidays.has(today)) return [];\n\nreturn [{ json: {} }];"
+      },
+      "name": "Market Open Check1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -944,
+        48
+      ],
+      "id": "99ddd133-8a02-4942-b4f2-3a74734719cc"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs",
+          "mode": "list",
+          "cachedResultName": "DailySnapshots",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "PreMarket",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "DataSource",
+              "displayName": "DataSource",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "RiskVerdict",
+              "displayName": "RiskVerdict",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "RiskScore",
+              "displayName": "RiskScore",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "RiskFactors",
+              "displayName": "RiskFactors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "VIX",
+              "displayName": "VIX",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Regime",
+              "displayName": "Regime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "BreadthSignal",
+              "displayName": "BreadthSignal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "CreditSignal",
+              "displayName": "CreditSignal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "FocusSectors",
+              "displayName": "FocusSectors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "RotationBias",
+              "displayName": "RotationBias",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "RotationScore",
+              "displayName": "RotationScore",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SectorRanking",
+              "displayName": "SectorRanking",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Top3Sectors",
+              "displayName": "Top3Sectors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Bot3Sectors",
+              "displayName": "Bot3Sectors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ES_Price",
+              "displayName": "ES_Price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ES_Change",
+              "displayName": "ES_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "NQ_Change",
+              "displayName": "NQ_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SPY_Price",
+              "displayName": "SPY_Price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SPY_Change",
+              "displayName": "SPY_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "QQQ_Change",
+              "displayName": "QQQ_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "IWM_Change",
+              "displayName": "IWM_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Gold_Change",
+              "displayName": "Gold_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Oil_Change",
+              "displayName": "Oil_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "BTC_Change",
+              "displayName": "BTC_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Yield10Y",
+              "displayName": "Yield10Y",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "DXY_Change",
+              "displayName": "DXY_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "XLK_Change",
+              "displayName": "XLK_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "XLY_Change",
+              "displayName": "XLY_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "XLF_Change",
+              "displayName": "XLF_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "XLI_Change",
+              "displayName": "XLI_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "XLB_Change",
+              "displayName": "XLB_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "XLE_Change",
+              "displayName": "XLE_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "XLV_Change",
+              "displayName": "XLV_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "XLU_Change",
+              "displayName": "XLU_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "XLRE_Change",
+              "displayName": "XLRE_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "XLP_Change",
+              "displayName": "XLP_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "XLC_Change",
+              "displayName": "XLC_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "MarketRegime",
+              "displayName": "MarketRegime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Leadership",
+              "displayName": "Leadership",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Rotation",
+              "displayName": "Rotation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Breadth",
+              "displayName": "Breadth",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Liquidity",
+              "displayName": "Liquidity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TopSectors",
+              "displayName": "TopSectors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "WeakSectors",
+              "displayName": "WeakSectors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "RiskAssetsTrend",
+              "displayName": "RiskAssetsTrend",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SMH_Change",
+              "displayName": "SMH_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "IYT_Change",
+              "displayName": "IYT_Change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Type",
+              "displayName": "Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Save to Sheets1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        640,
+        144
+      ],
+      "id": "9ad6866a-b988-4a85-a302-4c35b4086f22",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1441028378084769792/rajxn9_hCg3CeMx4TjNo5QAP8lh0_EBGUhgaByH4EStvfmro8GMrT9usoL9bpIQShbIa",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "username",
+              "value": "Market Bot      Pre-Market"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Post to Discord1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        704,
+        -48
+      ],
+      "id": "ad26ee0e-2874-4a2b-8046-0a34affb35ed"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $json.saveRow }];"
+      },
+      "name": "Sheets Prep1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        144
+      ],
+      "id": "6b9dbfa0-8b32-453a-92c5-1300df899f7d"
+    },
+    {
+      "parameters": {
+        "jsCode": "const LIMIT = 1900;\nconst chunks = [];\n\n// 1. AI analysis from LLM node (plain text)\nconst rawAnalysis = $input.first().json.text || '';\nconst analysis = rawAnalysis.replace(/^[.\\s\"{}]+/, '').replace(/[\"\\s{}]+$/, '').trim();\nif (analysis) {\n  chunks.push(analysis);\n}\n\n// 2. Formatted brief from Compute1 directly (LLM node doesn't pass it through)\nconst brief = $('Compute1').first().json.message || '';\nif (!brief) return chunks.map(c => ({ json: { message: c } }));\n\nif (brief.length <= LIMIT) {\n  chunks.push(brief);\n} else {\n  // Strip outer ``` wrappers, split at section boundaries, re-wrap each chunk\n  const inner = brief.replace(/^```\\n/, '').replace(/\\n```$/, '');\n  const sections = inner.split('\\n\\n');\n  let cur = '';\n\n  for (const sec of sections) {\n    const candidate = cur ? cur + '\\n\\n' + sec : sec;\n    // Reserve 8 chars for ``` wrapping\n    if (candidate.length > LIMIT - 8 && cur) {\n      chunks.push('```\\n' + cur.trim() + '\\n```');\n      cur = sec;\n    } else {\n      cur = candidate;\n    }\n  }\n  if (cur.trim()) {\n    chunks.push('```\\n' + cur.trim() + '\\n```');\n  }\n}\n\nreturn chunks.map(c => ({ json: { message: c } }));"
+      },
+      "name": "Discord Prep1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -48
+      ],
+      "id": "c589cb12-2bb6-4e05-84c9-d2e3f86fd190"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compute1 outputs { message, saveRow } — read from saveRow\nconst row = $json.saveRow || {};\nconst p = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };\nconst i = v => { const n = parseInt(v);   return isNaN(n) ? null : n; };\nreturn [{ json: {\n  date:           row.Date,\n  timestamp:      row.Timestamp || new Date().toISOString(),\n  type:           row.Type || 'PRE-MARKET',\n  risk_verdict:   row.RiskVerdict  || null,\n  risk_score:     i(row.RiskScore),\n  risk_factors:   row.RiskFactors  || null,\n  focus_sectors:  row.FocusSectors || null,\n  top_3_sectors:  row.Top3Sectors  || null,\n  bot_3_sectors:  row.Bot3Sectors  || null,\n  rotation_bias:  row.RotationBias || null,\n  rotation_score: i(row.RotationScore),\n  sector_ranking: row.SectorRanking || null,\n  vix:            p(row.VIX),\n  regime:         row.Regime       || null,\n  leadership:     row.Leadership   || null,\n  breadth_signal: row.BreadthSignal || null,\n  credit_signal:  row.CreditSignal  || null,\n  breadth:        row.Breadth       || null,\n  liquidity:      row.Liquidity     || null,\n  es_price:       p(row.ES_Price),\n  es_change:      p(row.ES_Change),\n  nq_change:      p(row.NQ_Change),\n  spy_price:      p(row.SPY_Price),\n  spy_change:     p(row.SPY_Change),\n  qqq_change:     p(row.QQQ_Change),\n  iwm_change:     p(row.IWM_Change),\n  gold_change:    p(row.Gold_Change),\n  oil_change:     p(row.Oil_Change),\n  btc_change:     p(row.BTC_Change),\n  eth_change:     p(row.ETH_Change),\n  yield_10y:      p(row.Yield10Y),\n  dxy_change:     p(row.DXY_Change),\n  smh_change:     p(row.SMH_Change),\n  iyt_change:     p(row.IYT_Change),\n  xlk_change:     p(row.XLK_Change),\n  xly_change:     p(row.XLY_Change),\n  xlf_change:     p(row.XLF_Change),\n  xli_change:     p(row.XLI_Change),\n  xlb_change:     p(row.XLB_Change),\n  xle_change:     p(row.XLE_Change),\n  xlv_change:     p(row.XLV_Change),\n  xlu_change:     p(row.XLU_Change),\n  xlre_change:    p(row.XLRE_Change),\n  xlp_change:     p(row.XLP_Change),\n  xlc_change:     p(row.XLC_Change),\n} }];"
+      },
+      "name": "PostgreSQL Prep",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        352
+      ],
+      "id": "c181187e-d357-4f36-8bb8-1537d6aacb63"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data    = $json.marketData;\nconst today   = new Date().toLocaleDateString('en-US', {\n  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'\n});\n\nconst r    = n => (n !== null && n !== undefined && !isNaN(n)) ? Math.round(n * 100) / 100 : null;\nconst sign = n => (n !== null && n >= 0) ? \"+\" : \"\";\nconst pct  = n => n !== null ? sign(n) + n + \"%\" : \"N/A\";\nconst pad  = (s, len) => String(s).padEnd(len);\nconst arr  = n => (n !== null && n > 0.05) ? \"^\" : (n !== null && n < -0.05) ? \"v\" : \"-\";\n\n// -- Assets --\nconst find  = sym => data.find(d => d.symbol === sym);\nconst es    = find(\"ES=F\");\nconst nq    = find(\"NQ=F\");\nconst ym    = find(\"YM=F\");\nconst rty   = find(\"RTY=F\");\nconst spy   = find(\"SPY\");\nconst qqq   = find(\"QQQ\");\nconst iwm   = find(\"IWM\");\nconst dia   = find(\"DIA\");\nconst rsp   = find(\"RSP\");\nconst smh   = find(\"SMH\");\nconst iyt   = find(\"IYT\");\nconst vix   = find(\"^VIX\");\nconst tnx   = find(\"^TNX\");\nconst tlt   = find(\"TLT\");\nconst hyg   = find(\"HYG\");\nconst dxy   = find(\"DX-Y.NYB\");\nconst gold  = find(\"GC=F\");\nconst oil   = find(\"CL=F\");\nconst btc   = find(\"BTC-USD\");\nconst eth   = find(\"ETH-USD\");\n\nconst sectors       = data.filter(d => d.category === \"Sector\");\nconst sectorsSorted = [...sectors].sort((a, b) => (b.percentChange || 0) - (a.percentChange || 0));\n\nconst OFFENSIVE = [\"XLK\",\"XLY\",\"XLF\",\"XLI\",\"XLB\",\"XLE\"];\nconst DEFENSIVE = [\"XLU\",\"XLRE\",\"XLP\",\"XLV\",\"XLC\"];\n\nconst SECTOR_LABELS = {\n  \"XLK\":  \"Technology\",\n  \"XLY\":  \"Consumer Discr.\",\n  \"XLF\":  \"Financials\",\n  \"XLI\":  \"Industrials\",\n  \"XLB\":  \"Materials\",\n  \"XLE\":  \"Energy\",\n  \"XLV\":  \"Healthcare\",\n  \"XLU\":  \"Utilities\",\n  \"XLRE\": \"Real Estate\",\n  \"XLP\":  \"Consumer Staples\",\n  \"XLC\":  \"Comm. Services\",\n};\n\n// -- Data source label --\nconst preMarketCount = data.filter(d => d.priceSource === \"PRE-MARKET\").length;\nconst dataLabel = preMarketCount >= 3\n  ? \"LIVE PRE-MARKET (\" + preMarketCount + \" assets)\"\n  : \"YESTERDAY'S CLOSE\";\n\n// -- Risk Score (-5 to +5) --\nlet riskScore = 0;\nconst riskFactors = [];\n\nconst futsValid = [es, nq, rty].filter(f => f && f.percentChange !== null);\nif (futsValid.length) {\n  const futAvg = r(futsValid.reduce((s, f) => s + f.percentChange, 0) / futsValid.length);\n  if      (futAvg >= 0.5)   { riskScore += 2; riskFactors.push(\"Futures +\" + futAvg + \"%\"); }\n  else if (futAvg >= 0.15)  { riskScore += 1; riskFactors.push(\"Futures +\" + futAvg + \"%\"); }\n  else if (futAvg <= -0.5)  { riskScore -= 2; riskFactors.push(\"Futures \" + futAvg + \"%\"); }\n  else if (futAvg <= -0.15) { riskScore -= 1; riskFactors.push(\"Futures \" + futAvg + \"%\"); }\n  else                      { riskFactors.push(\"Futures flat\"); }\n}\n\nconst vixLevel = vix?.price ? r(vix.price) : 20;\nif      (vixLevel < 15) { riskScore += 2; riskFactors.push(\"VIX \" + vixLevel + \" calm\"); }\nelse if (vixLevel < 20) { riskScore += 1; riskFactors.push(\"VIX \" + vixLevel + \" normal\"); }\nelse if (vixLevel < 25) { riskScore -= 1; riskFactors.push(\"VIX \" + vixLevel + \" elevated\"); }\nelse                    { riskScore -= 2; riskFactors.push(\"VIX \" + vixLevel + \" fear\"); }\n\nconst breadthDiff = (rsp?.percentChange != null && spy?.percentChange != null)\n  ? r(rsp.percentChange - spy.percentChange) : 0;\nif      (breadthDiff >= 0.2)  { riskScore += 1; riskFactors.push(\"breadth +\" + breadthDiff + \"%\"); }\nelse if (breadthDiff <= -0.2) { riskScore -= 1; riskFactors.push(\"breadth \" + breadthDiff + \"%\"); }\n\nif (hyg?.percentChange != null && tlt?.percentChange != null) {\n  if      (hyg.percentChange > 0.3  && tlt.percentChange < 0)   { riskScore += 1; riskFactors.push(\"credit compressing\"); }\n  else if (hyg.percentChange < -0.5 && tlt.percentChange > 0.3) { riskScore -= 1; riskFactors.push(\"credit widening\"); }\n}\n\nif (tnx?.percentChange != null) {\n  if      (tnx.percentChange > 1)  riskFactors.push(\"10Y ^\" + pct(r(tnx.percentChange)));\n  else if (tnx.percentChange < -1) riskFactors.push(\"10Y v\" + pct(r(tnx.percentChange)));\n}\n\nriskScore = Math.max(-5, Math.min(5, riskScore));\n\n// -- Verdict --\nlet riskVerdict, riskEmoji, riskDesc;\nif      (riskScore >= 3)  { riskVerdict = \"RISK-ON\";          riskEmoji = \":green_circle:\";  riskDesc = \"Favour longs. Size up on breakouts.\"; }\nelse if (riskScore >= 1)  { riskVerdict = \"LEANING RISK-ON\";  riskEmoji = \":yellow_circle:\"; riskDesc = \"Mild tailwind. Selective longs only.\"; }\nelse if (riskScore === 0) { riskVerdict = \"MIXED\";            riskEmoji = \":white_circle:\";  riskDesc = \"No edge. Reduce size, wait for clarity.\"; }\nelse if (riskScore >= -2) { riskVerdict = \"LEANING RISK-OFF\"; riskEmoji = \":orange_circle:\"; riskDesc = \"Defensive lean. Reduce exposure.\"; }\nelse                      { riskVerdict = \"RISK-OFF\";         riskEmoji = \":red_circle:\";    riskDesc = \"Stay defensive. Cash is a position.\"; }\n\nconst absScore = Math.abs(riskScore);\nconst scoreBar = riskScore >= 0\n  ? \"[\" + \".\".repeat(5 - absScore) + \"#\".repeat(absScore) + \"]\"\n  : \"[\" + \"#\".repeat(absScore) + \".\".repeat(5 - absScore) + \"]\";\n\n// -- Leadership Signal --\nconst spyChg = spy?.percentChange ?? 0;\nconst qqqChg = qqq?.percentChange ?? 0;\nconst iwmChg = iwm?.percentChange ?? 0;\nconst rspChg = rsp?.percentChange ?? 0;\nconst broadAvg = r((iwmChg + rspChg) / 2);\nconst allDown = spyChg < -0.3 && qqqChg < -0.3 && iwmChg < -0.3;\nconst megaCapLead = r(qqqChg - broadAvg) > 0.5;\nconst broadParticipation = Math.abs(r(broadAvg - spyChg)) < 0.3 && spyChg > 0;\n\nlet leadership;\nif (allDown)                 leadership = \"Broad Selling\";\nelse if (megaCapLead)        leadership = \"Mega Cap Driven\";\nelse if (broadParticipation) leadership = \"Broad Participation\";\nelse                         leadership = \"Mixed\";\n\n// -- Breadth Summary --\nconst positiveSectors  = sectors.filter(s => s.percentChange > 0).length;\nconst sectorBreadthPct = positiveSectors / sectors.length;\nconst iwmVsSpy         = r(iwmChg - spyChg);\nconst avgBreadthDiff   = r((breadthDiff + iwmVsSpy) / 2);\n\nlet breadthSummary;\nif      (avgBreadthDiff >= 0.15 && sectorBreadthPct > 0.6)   breadthSummary = \"Strong\";\nelse if (avgBreadthDiff <= -0.15 || sectorBreadthPct < 0.35) breadthSummary = \"Weak\";\nelse                                                           breadthSummary = \"Neutral\";\n\n// -- Liquidity Signal --\nconst dxyChg = dxy?.percentChange ?? 0;\nconst tnxChg = tnx?.percentChange ?? 0;\nconst hygChg = hyg?.percentChange ?? 0;\nlet liquidityScore = 0;\nif (dxyChg < -0.2) liquidityScore++; else if (dxyChg > 0.2)  liquidityScore--;\nif (tnxChg < -1)   liquidityScore++; else if (tnxChg > 1)    liquidityScore--;\nif (hygChg > 0.2)  liquidityScore++; else if (hygChg < -0.3) liquidityScore--;\n\nlet liquiditySignal;\nif      (liquidityScore >= 2)  liquiditySignal = \"Expanding\";\nelse if (liquidityScore <= -2) liquiditySignal = \"Tightening\";\nelse                           liquiditySignal = \"Neutral\";\n\n// -- Text signals --\nconst breadthSignal = breadthDiff >= 0.2\n  ? \"BROAD +\" + breadthDiff + \"% RSP lead\"\n  : breadthDiff <= -0.2\n    ? \"NARROW \" + breadthDiff + \"% RSP lag\"\n    : \"NEUTRAL\";\n\nconst creditSignal = (hyg?.percentChange != null && tlt?.percentChange != null)\n  ? hyg.percentChange < -0.5 && tlt.percentChange > 0.3 ? \"WIDENING (!)\"\n  : hyg.percentChange > 0.3  && tlt.percentChange < 0   ? \"COMPRESSING (ok)\"\n  : \"NEUTRAL\"\n  : \"N/A\";\n\n// -- Sector focus & rotation --\nconst top5symbols   = sectorsSorted.slice(0, 5).map(s => s.symbol);\nconst rotationScore = top5symbols.reduce((score, sym) => {\n  if (OFFENSIVE.includes(sym)) return score + 1;\n  if (DEFENSIVE.includes(sym)) return score - 1;\n  return score;\n}, 0);\nconst rotationBias = rotationScore >= 2 ? \"Cyclical\"\n  : rotationScore <= -2 ? \"Defensive\"\n  : \"Mixed\";\n\nlet focusSectors;\nif      (riskScore >= 1)  focusSectors = sectorsSorted.filter(s => OFFENSIVE.includes(s.symbol)).slice(0, 3);\nelse if (riskScore <= -1) focusSectors = sectorsSorted.filter(s => DEFENSIVE.includes(s.symbol)).slice(0, 3);\nelse                      focusSectors = sectorsSorted.slice(0, 3);\nconst focusSymbols = new Set(focusSectors.map(s => s.symbol));\n\n// -- TABLES --\nconst futRows = [es, nq, ym, rty].filter(Boolean).map(f =>\n  arr(f.percentChange) + \" \" + pad(f.symbol, 8) +\n  pad(f.price != null ? String(r(f.price)) : \"N/A\", 10) +\n  pad(pct(r(f.percentChange)), 9) +\n  (f.gapPct != null ? \"gap \" + pct(f.gapPct) : \"\")\n);\nconst futuresTable = \"```\\n  FUTURES  PRICE     CHG      GAP\\n\" + futRows.join(\"\\n\") + \"\\n```\";\n\nconst idxRows = [spy, qqq, iwm, dia, rsp].filter(Boolean).map(d =>\n  arr(d.percentChange) + \" \" + pad(d.symbol, 6) +\n  pad(d.price != null ? String(r(d.price)) : \"N/A\", 10) +\n  pad(pct(r(d.percentChange)), 9) +\n  (d.gapPct != null ? \"gap \" + pct(d.gapPct) : \"\")\n);\nconst vixRow = \"- \" + pad(\"VIX\", 6) +\n  pad(vix?.price != null ? String(r(vix.price)) : \"N/A\", 10) +\n  pct(r(vix?.percentChange));\n\nconst leaderRows = [smh, iyt].filter(Boolean).map(d =>\n  arr(d.percentChange) + \" \" + pad(d.symbol, 6) +\n  pad(d.price != null ? String(r(d.price)) : \"N/A\", 10) +\n  pad(pct(r(d.percentChange)), 9)\n);\nconst leaderSection = leaderRows.length\n  ? \"\\n  -- Leadership --\\n\" + leaderRows.join(\"\\n\")\n  : \"\";\n\nconst indexTable = \"```\\n  TICKER  PRICE     CHG      GAP\\n\" +\n  idxRows.join(\"\\n\") + \"\\n\" + vixRow + leaderSection + \"\\n```\";\n\nconst top4       = sectorsSorted.slice(0, 4);\nconst bottom3    = sectorsSorted.slice(-3);\nconst displaySet = new Set([...top4, ...bottom3].map(s => s.symbol));\nfocusSectors.forEach(s => displaySet.add(s.symbol));\nconst sectorDisplay = sectorsSorted.filter(s => displaySet.has(s.symbol));\nconst topDisplay = sectorDisplay.filter(s => sectorsSorted.indexOf(s) < 4);\nconst botDisplay = sectorDisplay.filter(s => sectorsSorted.indexOf(s) >= 4);\nconst sectorLabel = sym => SECTOR_LABELS[sym] || sym;\n\nconst topRows = topDisplay.map(s =>\n  arr(s.percentChange) + \" \" + pad(sectorLabel(s.symbol), 18) +\n  pad(pct(r(s.percentChange)), 9) + (focusSymbols.has(s.symbol) ? \" <\" : \"\")\n);\nconst botRows = botDisplay.map(s =>\n  arr(s.percentChange) + \" \" + pad(sectorLabel(s.symbol), 18) +\n  pad(pct(r(s.percentChange)), 9) + (focusSymbols.has(s.symbol) ? \" <\" : \"\")\n);\nconst sectorTable = \"```\\n  SECTOR             CHG\\n\" +\n  topRows.join(\"\\n\") + \"\\n  -------------------------\\n\" +\n  botRows.join(\"\\n\") + \"\\n```\";\n\nconst riskAssetRows = [\n  { d: gold, label: \"Gold  \" },\n  { d: oil,  label: \"Oil   \" },\n  { d: btc,  label: \"BTC   \" },\n  { d: eth,  label: \"ETH   \" },\n].filter(x => x.d && x.d.price != null).map(x =>\n  arr(x.d.percentChange) + \" \" + x.label + \" \" +\n  pad(String(r(x.d.price)), 10) +\n  pct(r(x.d.percentChange))\n);\nconst riskAssetsTable = \"```\\n  ASSET   PRICE     CHG\\n\" + riskAssetRows.join(\"\\n\") + \"\\n```\";\n\nconst liquidityRows = [\n  { d: tnx, label: \"10Y   \" },\n  { d: dxy, label: \"DXY   \" },\n  { d: hyg, label: \"Credit\" },\n].filter(x => x.d && x.d.price != null).map(x =>\n  arr(x.d.percentChange) + \" \" + x.label + \" \" +\n  pad(String(r(x.d.price)), 10) +\n  pct(r(x.d.percentChange))\n);\nconst liquidityTable = \"```\\n  ASSET   PRICE     CHG\\n\" + liquidityRows.join(\"\\n\") + \"\\n```\";\n\n// -- Message --\nconst msgLines = [\n  \"```\",\n  today + \"  PRE-MARKET BRIEF | \" + dataLabel,\n  \"=========================\",\n  riskVerdict + \" \" + scoreBar + \" \" + riskDesc,\n  \"Signals    \" + riskFactors.join(\"  |  \"),\n  \"Breadth    \" + breadthSummary + \"  (\" + breadthSignal + \")\",\n  \"Credit     \" + creditSignal,\n  \"Leadership \" + leadership,\n  \"Liquidity  \" + liquiditySignal,\n  \"\",\n  \" Futures \",\n  \"  FUTURES  PRICE     CHG      GAP\",\n  futRows.join(\"\\n\"),\n  \"\",\n  \" Indexes & Leadership \",\n  \"  TICKER  PRICE     CHG      GAP\",\n  idxRows.join(\"\\n\"),\n  vixRow,\n];\nif (leaderRows.length) {\n  msgLines.push(\"  -- Leadership --\");\n  leaderRows.forEach(lr => msgLines.push(lr));\n}\nmsgLines.push(\n  \"\",\n  \" Sector Rotation \",\n  \"  SECTOR             CHG\",\n  topRows.join(\"\\n\"),\n  \"  -------------------------\",\n  botRows.join(\"\\n\"),\n  \" Rotation: \" + rotationBias + \" | Focus: \" + [...focusSymbols].join(\", \"),\n  \"\",\n  \" Risk Assets \",\n  \"  ASSET   PRICE     CHG\",\n  riskAssetRows.join(\"\\n\"),\n  \"\",\n  \" Liquidity \",\n  \"  ASSET   PRICE     CHG\",\n  liquidityRows.join(\"\\n\"),\n  \" Liquidity: \" + liquiditySignal,\n  \"```\"\n);\nconst message = msgLines.join(\"\\n\");\n\n// -- Save row --\nconst sectorBySymbol = {};\nsectors.forEach(s => { sectorBySymbol[s.symbol] = s; });\n\nconst sectorRanking = sectorsSorted\n  .map((s, i) => (i+1) + \". \" + s.symbol + \"(\" + (s.percentChange >= 0 ? \"+\" : \"\") + r(s.percentChange) + \"%)\")\n  .join(\", \");\nconst top3Sectors = sectorsSorted.slice(0, 3)\n  .map(s => s.symbol + \"(\" + (s.percentChange >= 0 ? \"+\" : \"\") + r(s.percentChange) + \"%)\").join(\", \");\nconst bot3Sectors = sectorsSorted.slice(-3)\n  .map(s => s.symbol + \"(\" + r(s.percentChange) + \"%)\").join(\", \");\n\nconst riskAssetsList = [gold, oil, btc, eth].filter(x => x && x.percentChange != null);\nconst riskAvg = riskAssetsList.length\n  ? r(riskAssetsList.reduce((sum, x) => sum + x.percentChange, 0) / riskAssetsList.length)\n  : null;\nconst riskAssetsTrend = riskAvg === null ? \"N/A\"\n  : riskAvg > 0.2 ? \"Bullish\"\n  : riskAvg < -0.2 ? \"Bearish\"\n  : \"Neutral\";\n\nconst saveRow = {\n  Date:            today,\n  Type:            \"PRE-MARKET\",\n  Timestamp:       new Date().toISOString(),\n  DataSource:      dataLabel,\n  MarketRegime:    riskVerdict,\n  RiskVerdict:     riskVerdict,\n  RiskScore:       riskScore,\n  RiskFactors:     riskFactors.join(\" | \"),\n  VIX:             vixLevel,\n  Regime:          vixLevel >= 20 ? \"ELEVATED\" : \"NORMAL\",\n  Leadership:      leadership,\n  Rotation:        rotationBias,\n  Breadth:         breadthSummary,\n  Liquidity:       liquiditySignal,\n  BreadthSignal:   breadthSignal,\n  CreditSignal:    creditSignal,\n  FocusSectors:    [...focusSymbols].join(\", \"),\n  RotationBias:    rotationBias,\n  RotationScore:   rotationScore,\n  SectorRanking:   sectorRanking,\n  Top3Sectors:     top3Sectors,\n  Bot3Sectors:     bot3Sectors,\n  TopSectors:      top3Sectors,\n  WeakSectors:     bot3Sectors,\n  RiskAssetsTrend: riskAssetsTrend,\n  ES_Price:        es?.price,\n  ES_Change:       es?.percentChange,\n  NQ_Change:       nq?.percentChange,\n  SPY_Price:       spy?.price,\n  SPY_Change:      spy?.percentChange,\n  QQQ_Change:      qqq?.percentChange,\n  IWM_Change:      iwm?.percentChange,\n  Gold_Change:     gold?.percentChange,\n  Oil_Change:      oil?.percentChange,\n  BTC_Change:      btc?.percentChange,\n  ETH_Change:      eth?.percentChange,\n  Yield10Y:        tnx?.price ?? tnx?.regularMarketPrice ?? tnx?.previousClose ?? null,\n  DXY_Change:      dxy?.percentChange,\n  SMH_Change:      smh?.percentChange,\n  IYT_Change:      iyt?.percentChange,\n  XLK_Change:      sectorBySymbol[\"XLK\"]?.percentChange,\n  XLY_Change:      sectorBySymbol[\"XLY\"]?.percentChange,\n  XLF_Change:      sectorBySymbol[\"XLF\"]?.percentChange,\n  XLI_Change:      sectorBySymbol[\"XLI\"]?.percentChange,\n  XLB_Change:      sectorBySymbol[\"XLB\"]?.percentChange,\n  XLE_Change:      sectorBySymbol[\"XLE\"]?.percentChange,\n  XLV_Change:      sectorBySymbol[\"XLV\"]?.percentChange,\n  XLU_Change:      sectorBySymbol[\"XLU\"]?.percentChange,\n  XLRE_Change:     sectorBySymbol[\"XLRE\"]?.percentChange,\n  XLP_Change:      sectorBySymbol[\"XLP\"]?.percentChange,\n  XLC_Change:      sectorBySymbol[\"XLC\"]?.percentChange,\n};\n\nreturn [{ json: { message, saveRow } }];"
+      },
+      "name": "Compute1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        48
+      ],
+      "id": "a17943c5-9ebc-4216-bb01-52e05f0c17d1"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "marketData",
+        "options": {}
+      },
+      "name": "Aggregate1",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        48
+      ],
+      "id": "e9e317cb-281a-457b-8e20-3e51e57721b6"
+    },
+    {
+      "parameters": {},
+      "name": "Merge1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -240,
+        48
+      ],
+      "id": "1b3f7200-bff3-45ca-a618-56715cf4ee68"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Yahoo spark flat format: { \"XLY\": { timestamp, close, previousClose, chartPreviousClose }, ... }\nconst tickers = $('Tickers1').first().json.tickers;\nconst data    = $input.first().json;  // combined flat object from Combine Batches\n\nconst r = n => (n !== null && n !== undefined && !isNaN(n))\n  ? Math.round(n * 100) / 100 : null;\n\nreturn Object.entries(data).map(([sym, d]) => {\n  const ticker = tickers.find(t => t.symbol === sym)\n               || { symbol: sym, label: sym, category: 'Unknown' };\n\n  const timestamps = d.timestamp || [];\n  const closes     = d.close     || [];\n  const prevClose  = r(d.chartPreviousClose || d.previousClose);\n\n  // Find last pre-market bar (ET 4:00-9:30am = UTC 8:00-13:30)\n  let preMarketPrice = null;\n  let preMarketTime  = null;\n\n  for (let i = timestamps.length - 1; i >= 0; i--) {\n    const dt   = new Date(timestamps[i] * 1000);\n    const utcH = dt.getUTCHours();\n    const utcM = dt.getUTCMinutes();\n    const isPM = (utcH > 8 || (utcH === 8)) && (utcH < 13 || (utcH === 13 && utcM < 30));\n    if (isPM && closes[i] != null) {\n      preMarketPrice = r(closes[i]);\n      preMarketTime  = dt.toISOString();\n      break;\n    }\n  }\n\n  // Most recent valid close = last non-null entry\n  const lastClose = r(closes.filter(c => c != null).slice(-1)[0]);\n\n  let price, change, percentChange, priceSource;\n  if (preMarketPrice != null) {\n    price         = preMarketPrice;\n    change        = prevClose != null ? r(preMarketPrice - prevClose) : null;\n    percentChange = prevClose != null ? r(((preMarketPrice - prevClose) / prevClose) * 100) : null;\n    priceSource   = 'PRE-MARKET';\n  } else {\n    price         = lastClose;\n    change        = prevClose != null ? r(lastClose - prevClose) : null;\n    percentChange = prevClose != null ? r(((lastClose - prevClose) / prevClose) * 100) : null;\n    priceSource   = 'CLOSE';\n  }\n\n  const gapPct = (priceSource === 'PRE-MARKET' && price != null && prevClose != null)\n    ? r(((price - prevClose) / prevClose) * 100)\n    : null;\n\n  return { json: {\n    symbol:       sym,\n    label:        ticker.label,\n    category:     ticker.category,\n    price,\n    prevClose,\n    change,\n    percentChange,\n    gapPct,\n    priceSource,\n    preMarketTime,\n    high:          null,\n    low:           null,\n    volume:        null,\n    avgVolume:     null,\n  }};\n});"
+      },
+      "name": "Parse1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        288
+      ],
+      "id": "b994e78a-5b94-4fc1-aa02-db9b48f80214"
+    },
+    {
+      "parameters": {
+        "url": "=https://query2.finance.yahoo.com/v8/finance/spark?symbols={{ $json.symbols }}&range=1d&interval=5m&includePrePost=true",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c159c7cf-7ca2-474a-b5f9-b125f18994b9",
+      "name": "Yahoo Fetch1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -672,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst tickers = [\n  // Futures     pre-market pulse\n  { symbol: \"ES=F\",      label: \"S&P 500 Futures\",       category: \"Futures\" },\n  { symbol: \"NQ=F\",      label: \"Nasdaq Futures\",         category: \"Futures\" },\n  { symbol: \"YM=F\",      label: \"Dow Futures\",            category: \"Futures\" },\n  { symbol: \"RTY=F\",     label: \"Russell Futures\",        category: \"Futures\" },\n\n  // Indexes\n  { symbol: \"SPY\",       label: \"S&P 500 ETF\",            category: \"Equity Index\" },\n  { symbol: \"QQQ\",       label: \"Nasdaq 100 ETF\",         category: \"Equity Index\" },\n  { symbol: \"IWM\",       label: \"Russell 2000 ETF\",       category: \"Equity Index\" },\n  { symbol: \"DIA\",       label: \"Dow Jones ETF\",          category: \"Equity Index\" },\n  { symbol: \"RSP\",       label: \"S&P Equal Weight\",       category: \"Equity Index\" },\n  { symbol: \"SMH\",       label: \"Semiconductors\",          category: \"Leadership\" },\n  { symbol: \"IYT\",       label: \"Transportation\",          category: \"Leadership\" },\n\n  // Volatility\n  { symbol: \"^VIX\",      label: \"VIX\",                   category: \"Volatility\" },\n\n  // Rates\n  { symbol: \"^TNX\",      label: \"10Y Treasury Yield\",     category: \"Rates\" },\n  { symbol: \"TLT\",       label: \"20Y Bond ETF\",           category: \"Rates\" },\n  { symbol: \"HYG\",       label: \"High Yield Credit\",      category: \"Rates\" },\n\n  // Dollar\n  { symbol: \"DX-Y.NYB\",  label: \"US Dollar Index\",        category: \"Macro\" },\n\n  // Sectors\n  { symbol: \"XLK\",       label: \"Technology\",             category: \"Sector\" },\n  { symbol: \"XLY\",       label: \"Consumer Discretionary\", category: \"Sector\" },\n  { symbol: \"XLF\",       label: \"Financials\",             category: \"Sector\" },\n  { symbol: \"XLI\",       label: \"Industrials\",            category: \"Sector\" },\n  { symbol: \"XLB\",       label: \"Materials\",              category: \"Sector\" },\n  { symbol: \"XLE\",       label: \"Energy\",                 category: \"Sector\" },\n  { symbol: \"XLV\",       label: \"Healthcare\",             category: \"Sector\" },\n  { symbol: \"XLU\",       label: \"Utilities\",              category: \"Sector\" },\n  { symbol: \"XLRE\",      label: \"Real Estate\",            category: \"Sector\" },\n  { symbol: \"XLP\",       label: \"Consumer Staples\",       category: \"Sector\" },\n  { symbol: \"XLC\",       label: \"Communication Svcs\",     category: \"Sector\" },\n\n  // Crypto\n  { symbol: \"BTC-USD\",   label: \"Bitcoin\",                category: \"Crypto\" },\n  { symbol: \"ETH-USD\",   label: \"Ethereum\",               category: \"Crypto\" },\n\n  // Commodities\n  { symbol: \"GC=F\",      label: \"Gold Futures\",           category: \"Commodity\" },\n  { symbol: \"CL=F\",      label: \"Crude Oil Futures\",      category: \"Commodity\" },\n];\n\n// Return single bulk symbol string for Yahoo Finance API\nconst symbols = tickers.map(t => t.symbol).join(',');\nreturn [{ json: { symbols, tickers } }];\n"
+      },
+      "name": "Tickers1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        48
+      ],
+      "id": "132a89f7-5ce7-4c41-aa4f-1c02994cd8d1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "name": "Schedule 9:30am1",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1104,
+        48
+      ],
+      "id": "b35ea422-09b3-49bc-96f7-4770a30f3910"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a terse market analyst. Write exactly 3 plain-text sentences — no JSON, no markdown, no bullets, no field names.\nSentence 1: state the dominant theme using the risk verdict shown (e.g. RISK-OFF, LEANING RISK-OFF) and the ES and NQ % changes from the Futures table.\nSentence 2: name the specific trade setup using the rotation direction shown after \"Rotation:\" and the sectors listed after \"Focus:\" in the brief. If Focus is empty, use the top sector from the Sector Rotation table.\nSentence 3: name one specific risk using an actual number from the data — a VIX value, a sector %, or an asset % — that is different from what was stated in sentence 1.\nMax 400 chars total. Never say field names like RiskVerdict or FocusSectors. Never invent data.\n\n{{ $json.message }}"
+      },
+      "name": "Enhance with LLM",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        384,
+        -304
+      ],
+      "id": "c8dadf7c-cd3b-478d-988e-95a68dee03f3"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "name": "Groq Model (PM)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        192,
+        -192
+      ],
+      "id": "efbe696c-f333-4f69-8b9a-b413e76a7a09",
+      "credentials": {
+        "groqApi": {
+          "id": "9ac0YQMSX8bcOoGi",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        -288
+      ],
+      "id": "a298ce5c-6055-4a61-9986-d7483ec51759"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1479815124155105311/wBiDGC2noAgb44bdwNYzk8ceQcIqwF0OPHqvux6xSE7xOEoXR2iHKx_WP8HQdwnNbxYX",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "=⚠️ **ERROR** in **{{ $json.workflow.name }}**\nNode: `{{ $json.execution.lastNodeExecuted }}`\nError: {{ $json.execution.error.message }}\nTime: {{ $now }}"
+            },
+            {
+              "name": "username",
+              "value": "Market Bot ⚠️ Error Alert"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Send Error to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -208,
+        -288
+      ],
+      "id": "f11e131c-5221-49b1-8107-3b243ae88370"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split symbols into batches of <=20 (Yahoo spark limit)\nconst allSymbols = $json.symbols.split(',');\nconst BATCH_SIZE = 20;\nconst output = [];\nfor (let i = 0; i < allSymbols.length; i += BATCH_SIZE) {\n  output.push({ json: { symbols: allSymbols.slice(i, i + BATCH_SIZE).join(',') } });\n}\nreturn output;"
+      },
+      "id": "f6dc0e07-3660-454f-a96c-7a976f5371de",
+      "name": "Split Batches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -848,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Yahoo spark returns { ticker: { close, timestamp, previousClose, ... } }\n// Merge both batch responses into one flat object\nconst combined = {};\nfor (const item of $input.all()) {\n  Object.assign(combined, item.json);\n}\nreturn [{ json: combined }];"
+      },
+      "id": "ce4a1f80-07b6-4006-9ce6-c1bf00bb1c0b",
+      "name": "Combine Batches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "premarket_brief",
+          "mode": "list",
+          "cachedResultName": "premarket_brief"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "date",
+            "type"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "type",
+              "displayName": "type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "risk_verdict",
+              "displayName": "risk_verdict",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "risk_score",
+              "displayName": "risk_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "risk_factors",
+              "displayName": "risk_factors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "focus_sectors",
+              "displayName": "focus_sectors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "top_3_sectors",
+              "displayName": "top_3_sectors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "bot_3_sectors",
+              "displayName": "bot_3_sectors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "rotation_bias",
+              "displayName": "rotation_bias",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "rotation_score",
+              "displayName": "rotation_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "sector_ranking",
+              "displayName": "sector_ranking",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "vix",
+              "displayName": "vix",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "regime",
+              "displayName": "regime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "leadership",
+              "displayName": "leadership",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "breadth_signal",
+              "displayName": "breadth_signal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "credit_signal",
+              "displayName": "credit_signal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "breadth",
+              "displayName": "breadth",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "liquidity",
+              "displayName": "liquidity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "es_price",
+              "displayName": "es_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "es_change",
+              "displayName": "es_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "nq_change",
+              "displayName": "nq_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "spy_price",
+              "displayName": "spy_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "spy_change",
+              "displayName": "spy_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "qqq_change",
+              "displayName": "qqq_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "iwm_change",
+              "displayName": "iwm_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "gold_change",
+              "displayName": "gold_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "oil_change",
+              "displayName": "oil_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "btc_change",
+              "displayName": "btc_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "eth_change",
+              "displayName": "eth_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "yield_10y",
+              "displayName": "yield_10y",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "dxy_change",
+              "displayName": "dxy_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "smh_change",
+              "displayName": "smh_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "iyt_change",
+              "displayName": "iyt_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "xlk_change",
+              "displayName": "xlk_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "xly_change",
+              "displayName": "xly_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "xlf_change",
+              "displayName": "xlf_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "xli_change",
+              "displayName": "xli_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "xlb_change",
+              "displayName": "xlb_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "xle_change",
+              "displayName": "xle_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "xlv_change",
+              "displayName": "xlv_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "xlu_change",
+              "displayName": "xlu_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "xlre_change",
+              "displayName": "xlre_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "xlp_change",
+              "displayName": "xlp_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "xlc_change",
+              "displayName": "xlc_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        624,
+        352
+      ],
+      "id": "6222edee-9e50-4eb9-b7d9-cdba4c90fbd1",
+      "name": "Insert or update rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "hGubp1Cj0GkU084W",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Sheets Prep1": {
+      "main": [
+        [
+          {
+            "node": "Save to Sheets1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord Prep1": {
+      "main": [
+        [
+          {
+            "node": "Post to Discord1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Error to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhance with LLM": {
+      "main": [
+        [
+          {
+            "node": "Discord Prep1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostgreSQL Prep": {
+      "main": [
+        [
+          {
+            "node": "Insert or update rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute1": {
+      "main": [
+        [
+          {
+            "node": "Sheets Prep1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enhance with LLM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PostgreSQL Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "Compute1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Yahoo Fetch1": {
+      "main": [
+        [
+          {
+            "node": "Combine Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tickers1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Split Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule 9:30am1": {
+      "main": [
+        [
+          {
+            "node": "Market Open Check1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Market Open Check1": {
+      "main": [
+        [
+          {
+            "node": "Tickers1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Model (PM)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Enhance with LLM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Batches": {
+      "main": [
+        [
+          {
+            "node": "Yahoo Fetch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Batches": {
+      "main": [
+        [
+          {
+            "node": "Parse1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "fa8ae173-537c-4b79-b1f0-b033401b85ec",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9c23eca2d653c8acdcca310f46e54a77c95d745d2d10583ce1e408a8ca6940dc"
+  },
+  "id": "8Miaw1fTLWCNx2Zr",
+  "tags": []
+}

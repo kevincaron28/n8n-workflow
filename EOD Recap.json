@@ -1,0 +1,633 @@
+{
+  "name": "EOD Recap",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 16,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "name": "Schedule 4:30pm",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        624
+      ],
+      "id": "bdaeae03-8861-4874-ad71-e9bf5e4ad095"
+    },
+    {
+      "parameters": {
+        "jsCode": "const tickers = [\n  // Futures\n  { symbol: \"ES=F\",      label: \"S&P 500 Futures\",       category: \"Futures\" },\n  { symbol: \"NQ=F\",      label: \"Nasdaq Futures\",         category: \"Futures\" },\n  { symbol: \"YM=F\",      label: \"Dow Futures\",            category: \"Futures\" },\n  { symbol: \"RTY=F\",     label: \"Russell Futures\",        category: \"Futures\" },\n  // Indexes\n  { symbol: \"SPY\",       label: \"S&P 500 ETF\",            category: \"Equity Index\" },\n  { symbol: \"QQQ\",       label: \"Nasdaq 100 ETF\",         category: \"Equity Index\" },\n  { symbol: \"IWM\",       label: \"Russell 2000 ETF\",       category: \"Equity Index\" },\n  { symbol: \"DIA\",       label: \"Dow Jones ETF\",          category: \"Equity Index\" },\n  { symbol: \"RSP\",       label: \"S&P Equal Weight\",       category: \"Equity Index\" },\n  { symbol: \"SMH\",       label: \"Semiconductors\",          category: \"Leadership\" },\n  { symbol: \"IYT\",       label: \"Transportation\",          category: \"Leadership\" },\n  // Volatility\n  { symbol: \"^VIX\",      label: \"VIX\",                   category: \"Volatility\" },\n  // Rates\n  { symbol: \"^TNX\",      label: \"10Y Treasury Yield\",     category: \"Rates\" },\n  { symbol: \"TLT\",       label: \"20Y Treasury ETF\",       category: \"Rates\" },\n  { symbol: \"HYG\",       label: \"High Yield Credit\",      category: \"Rates\" },\n  // Macro\n  { symbol: \"DX-Y.NYB\",  label: \"US Dollar Index\",        category: \"Macro\" },\n  { symbol: \"GC=F\",      label: \"Gold Futures\",           category: \"Commodity\" },\n  { symbol: \"CL=F\",      label: \"Crude Oil Futures\",      category: \"Commodity\" },\n  { symbol: \"BTC-USD\",   label: \"Bitcoin\",                category: \"Crypto\" },\n  { symbol: \"ETH-USD\",   label: \"Ethereum\",               category: \"Crypto\" },\n  // Sectors\n  { symbol: \"XLK\",       label: \"Technology\",             category: \"Sector\" },\n  { symbol: \"XLY\",       label: \"Consumer Discretionary\", category: \"Sector\" },\n  { symbol: \"XLF\",       label: \"Financials\",             category: \"Sector\" },\n  { symbol: \"XLI\",       label: \"Industrials\",            category: \"Sector\" },\n  { symbol: \"XLB\",       label: \"Materials\",              category: \"Sector\" },\n  { symbol: \"XLE\",       label: \"Energy\",                 category: \"Sector\" },\n  { symbol: \"XLV\",       label: \"Healthcare\",             category: \"Sector\" },\n  { symbol: \"XLU\",       label: \"Utilities\",              category: \"Sector\" },\n  { symbol: \"XLRE\",      label: \"Real Estate\",            category: \"Sector\" },\n  { symbol: \"XLP\",       label: \"Consumer Staples\",       category: \"Sector\" },\n  { symbol: \"XLC\",       label: \"Communication Svcs\",     category: \"Sector\" },\n];\n\n// Return single bulk symbol string for Yahoo Finance spark API\nconst symbols = tickers.map(t => t.symbol).join(',');\nreturn [{ json: { symbols, tickers } }];"
+      },
+      "name": "EOD Tickers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        528
+      ],
+      "id": "494e0939-9652-4fb5-bd93-88cded802e7d"
+    },
+    {
+      "parameters": {
+        "url": "=https://query2.finance.yahoo.com/v8/finance/spark?symbols={{ $json.symbols }}&range=5d&interval=1d",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "EOD Yahoo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        896,
+        560
+      ],
+      "id": "8ccb0df9-3c90-4705-8c0a-621507e7126a"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Yahoo spark flat format: { \"SPY\": { close, high, low, volume, timestamp, previousClose, chartPreviousClose }, ... }\nconst tickers = $('EOD Tickers').first().json.tickers;\nconst data    = $input.first().json;  // combined flat object from Combine Batches\n\nconst r = n => (n !== null && n !== undefined && !isNaN(n))\n  ? Math.round(n * 100) / 100 : null;\n\nreturn Object.entries(data).map(([sym, d]) => {\n  const ticker = tickers.find(t => t.symbol === sym)\n               || { symbol: sym, label: sym, category: 'Unknown' };\n\n  const closes  = (d.close  || []);\n  const highs   = (d.high   || []);\n  const lows    = (d.low    || []);\n  const volumes = (d.volume || []);\n\n  // Last valid close\n  const validCloses = closes.filter(c => c != null);\n  const lastClose   = r(validCloses[validCloses.length - 1]);\n\n  // Previous close: prefer chartPreviousClose (most reliable for EOD)\n  const prevClose = r(d.chartPreviousClose || d.previousClose || validCloses[validCloses.length - 2]);\n\n  const change        = (lastClose != null && prevClose != null) ? r(lastClose - prevClose) : null;\n  const percentChange = (lastClose != null && prevClose != null && prevClose !== 0)\n    ? r(((lastClose - prevClose) / Math.abs(prevClose)) * 100) : null;\n\n  // Today's high/low from last bar\n  const lastHigh = r(highs.filter(h => h != null).slice(-1)[0] ?? lastClose);\n  const lastLow  = r(lows.filter(l => l != null).slice(-1)[0]  ?? lastClose);\n\n  const dayRangePct = (lastHigh != null && lastLow != null && prevClose != null && prevClose !== 0)\n    ? r(((lastHigh - lastLow) / Math.abs(prevClose)) * 100) : null;\n\n  // Volume ratio: today vs average of prior days\n  const validVols = volumes.filter(v => v != null && v > 0);\n  const lastVol   = validVols[validVols.length - 1] || 0;\n  const priorVols = validVols.slice(0, -1);\n  const avgVol    = priorVols.length > 0\n    ? Math.round(priorVols.reduce((a, b) => a + b, 0) / priorVols.length) : 0;\n  const volumeRatio = avgVol > 0 ? r(lastVol / avgVol) : null;\n\n  return { json: {\n    symbol:       sym,\n    label:        ticker.label,\n    category:     ticker.category,\n    price:        lastClose,\n    prevClose,\n    change,\n    percentChange,\n    high:         lastHigh,\n    low:          lastLow,\n    dayRangePct,\n    volume:       lastVol,\n    avgVolume:    avgVol,\n    volumeRatio,\n  }};\n});"
+      },
+      "name": "EOD Parse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        560
+      ],
+      "id": "469d4df1-7162-48fa-802a-448b999e7207"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "marketData",
+        "options": {}
+      },
+      "name": "EOD Aggregate",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1792,
+        528
+      ],
+      "id": "5eeb4408-5293-441b-ba9e-ded5f87aa970"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data    = $json.marketData;\nconst pmData  = $json.pmRow || null;\n\nconst today = new Date().toLocaleDateString('en-US', {\n  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'\n});\n\nconst r    = n => (n !== null && n !== undefined && !isNaN(n)) ? Math.round(n * 100) / 100 : null;\nconst sign = n => (n !== null && n >= 0) ? \"+\" : \"\";\nconst pct  = n => n !== null ? sign(n) + n + \"%\" : \"N/A\";\nconst pad  = (s, len) => String(s).padEnd(len);\nconst arr  = n => (n !== null && n > 0.05) ? \"^\" : (n !== null && n < -0.05) ? \"v\" : \"-\";\n\nconst OFFENSIVE = [\"XLK\",\"XLY\",\"XLF\",\"XLI\",\"XLB\",\"XLE\"];\nconst DEFENSIVE = [\"XLU\",\"XLRE\",\"XLP\",\"XLV\",\"XLC\"];\n\n// -- Assets --\nconst find  = sym => data.find(d => d.symbol === sym);\nconst es    = find(\"ES=F\");\nconst nq    = find(\"NQ=F\");\nconst ym    = find(\"YM=F\");\nconst rty   = find(\"RTY=F\");\nconst spy   = find(\"SPY\");\nconst qqq   = find(\"QQQ\");\nconst iwm   = find(\"IWM\");\nconst dia   = find(\"DIA\");\nconst rsp   = find(\"RSP\");\nconst vix   = find(\"^VIX\");\nconst tnx   = find(\"^TNX\");\nconst tlt   = find(\"TLT\");\nconst hyg   = find(\"HYG\");\nconst dxy   = find(\"DX-Y.NYB\");\nconst gold  = find(\"GC=F\");\nconst oil   = find(\"CL=F\");\nconst btc   = find(\"BTC-USD\");\nconst eth   = find(\"ETH-USD\");\n\nconst sectors       = data.filter(d => d.category === \"Sector\");\nconst sectorsSorted = [...sectors].sort((a, b) => (b.percentChange || 0) - (a.percentChange || 0));\nconst sectorBySymbol = {};\nsectors.forEach(s => { sectorBySymbol[s.symbol] = s; });\n\n// -- Breadth check at close --\nconst breadthDiff = (rsp?.percentChange != null && spy?.percentChange != null)\n  ? r(rsp.percentChange - spy.percentChange) : null;\nconst breadthClose = breadthDiff !== null\n  ? breadthDiff >= 0.2  ? \"BROAD +\" + breadthDiff + \"% RSP lead\"\n  : breadthDiff <= -0.2 ? \"NARROW \" + breadthDiff + \"% RSP lag\"\n  : \"NEUTRAL\"\n  : \"N/A\";\n\n// -- Credit check at close --\nconst creditClose = (hyg?.percentChange != null && tlt?.percentChange != null)\n  ? hyg.percentChange < -0.5 && tlt.percentChange > 0.3 ? \"WIDENING (!)\"\n  : hyg.percentChange > 0.3  && tlt.percentChange < 0   ? \"COMPRESSING (ok)\"\n  : \"NEUTRAL\"\n  : \"N/A\";\n\n// -- Rotation at close --\nconst top5 = sectorsSorted.slice(0, 5).map(s => s.symbol);\nconst rotationScore = top5.reduce((sc, sym) => {\n  if (OFFENSIVE.includes(sym)) return sc + 1;\n  if (DEFENSIVE.includes(sym)) return sc - 1;\n  return sc;\n}, 0);\nconst rotationBias = rotationScore >= 2 ? \"OFFENSIVE\" : rotationScore <= -2 ? \"DEFENSIVE\" : \"MIXED\";\n\n// -- Unusual volume (1.5x, ETFs only: Equity Index / Leadership / Sector) --\n// Only track ETFs where Yahoo volume data is reliable\nconst VOL_CATEGORIES = new Set([\"Equity Index\", \"Leadership\", \"Sector\"]);\nconst unusualMovers = data\n  .filter(d =>\n    d.volumeRatio != null &&\n    d.volumeRatio > 1.5 &&\n    d.avgVolume > 500000 &&\n    VOL_CATEGORIES.has(d.category)\n  )\n  .sort((a, b) => (b.volumeRatio || 0) - (a.volumeRatio || 0))\n  .slice(0, 6);\n\n// -- Pre-market comparison block --\nlet pmCompare = \"\";\nif (pmData && pmData.RiskVerdict) {\n  const pmVerdict  = pmData.RiskVerdict  || \"N/A\";\n  const pmFocus    = pmData.FocusSectors || \"N/A\";\n  const pmTop3     = pmData.Top3Sectors  || \"N/A\";\n  const pmBot3     = pmData.Bot3Sectors  || \"N/A\";\n\n  const focusSyms  = pmFocus.split(\",\").map(s => s.trim());\n  const actualTop  = sectorsSorted[0]?.symbol;\n  const focusHit   = focusSyms.includes(actualTop);\n  const focusResult = focusHit\n    ? \"[OK] Focus sector **\" + actualTop + \"** was day leader\"\n    : \"[X] Focus (\" + pmFocus + \") -- actual leader: **\" + actualTop + \"**\";\n\n  const spyChg = spy?.percentChange || 0;\n  const verdictAligned =\n    (pmVerdict.includes(\"RISK-ON\")  && spyChg > 0) ? \"[OK] Verdict confirmed\" :\n    (pmVerdict.includes(\"RISK-OFF\") && spyChg < 0) ? \"[OK] Verdict confirmed\" :\n    (pmVerdict === \"MIXED\")                          ? \"[~] Mixed -- no clear signal\" :\n                                                       \"[X] Verdict not confirmed\";\n\n  pmCompare = [\n    \"**:repeat: Pre-Market vs Close**\",\n    \"```\",\n    \"AM verdict   \" + pmVerdict + \" -> \" + verdictAligned,\n    \"AM focus     \" + pmFocus,\n    focusResult,\n    \"AM top 3     \" + pmTop3,\n    \"AM bottom 3  \" + pmBot3,\n    \"```\",\n    \"\"\n  ].join(\"\\n\");\n} else {\n  pmCompare = \"**:repeat: Pre-Market vs Close**\\n_No pre-market data found for today_\\n\\n\";\n}\n\n// -- INDEX TABLE with day range --\nconst idxRows = [spy, qqq, iwm, dia].filter(Boolean).map(d =>\n  arr(d.percentChange) + \" \" + pad(d.symbol, 6) +\n  pad(d.price != null ? \"$\" + r(d.price) : \"N/A\", 10) +\n  pad(pct(r(d.percentChange)), 9) +\n  (d.dayRangePct != null ? \"range \" + r(d.dayRangePct) + \"%\" : \"\")\n);\nconst vixRow = arr(vix?.percentChange) + \" \" + pad(\"VIX\", 6) +\n  pad(vix?.price != null ? String(r(vix.price)) : \"N/A\", 10) +\n  pct(r(vix?.percentChange));\nconst indexTable = \"```\\n  TICKER  CLOSE     CHG      DAY RANGE\\n\" + idxRows.join(\"\\n\") + \"\\n\" + vixRow + \"\\n```\";\n\n// -- SECTOR TABLE --\nconst sectorRows = sectorsSorted.map(s =>\n  arr(s.percentChange) + \" \" + pad(s.label, 24) +\n  pct(r(s.percentChange))\n);\nconst sectorTable = \"```\\n  SECTOR                   CHG\\n\" + sectorRows.join(\"\\n\") + \"\\n```\";\n\n// -- MACRO TABLE --\nconst macroRows = [\n  { d: gold, label: \"Gold  \" },\n  { d: oil,  label: \"Oil   \" },\n  { d: btc,  label: \"BTC   \" },\n  { d: eth,  label: \"ETH   \" },\n  { d: tnx,  label: \"10Y   \" },\n  { d: dxy,  label: \"DXY   \" },\n  { d: hyg,  label: \"Credit\" },\n].filter(x => x.d && x.d.price != null).map(x =>\n  arr(x.d.percentChange) + \" \" + x.label + \" \" +\n  pad(\"$\" + r(x.d.price), 10) +\n  pct(r(x.d.percentChange))\n);\nconst macroTable = \"```\\n  ASSET   CLOSE     CHG\\n\" + macroRows.join(\"\\n\") + \"\\n```\";\n\n// -- UNUSUAL VOLUME BLOCK --\nconst volBlock = unusualMovers.length > 0\n  ? unusualMovers.map(d =>\n      \":fire: \" + pad(d.symbol, 7) +\n      pad(pct(r(d.percentChange)), 9) +\n      r(d.volumeRatio) + \"x avg vol\"\n    ).join(\"\\n\")\n  : \"_No unusual volume today (threshold: 1.5x avg)_\";\n\n// -- ROTATION SUMMARY --\nconst rotationEmoji = rotationBias === \"OFFENSIVE\" ? \":chart_with_upwards_trend:\" : rotationBias === \"DEFENSIVE\" ? \":shield:\" : \":scales:\";\nconst top3   = sectorsSorted.slice(0, 3).map(s => s.label + \" (\" + pct(r(s.percentChange)) + \")\").join(\"  \");\nconst bot3   = sectorsSorted.slice(-3).map(s => s.label + \" (\" + pct(r(s.percentChange)) + \")\").join(\"  \");\n\n// -- FULL MESSAGE --\nconst message = [\n  \":calendar: **\" + today + \"**\",\n  \"**END OF DAY RECAP**\",\n  \"=========================\",\n  \"\",\n  pmCompare,\n  \":bar_chart: **Index Close**\",\n  indexTable,\n  \"\",\n  \":thermometer: **Breadth & Credit at Close**\",\n  \"```\",\n  \"Breadth  \" + breadthClose,\n  \"Credit   \" + creditClose,\n  \"```\",\n  \"\",\n  \":map: **Sector Close**\",\n  rotationEmoji + \" Rotation: **\" + rotationBias + \"**\",\n  \"Leaders:  \" + top3,\n  \"Laggards: \" + bot3,\n  sectorTable,\n  \"\",\n  \":fire: **Unusual Volume** _(1.5x avg, ETFs only)_\",\n  volBlock,\n  \"\",\n  \":earth_africa: **Macro Close**\",\n  macroTable,\n].join(\"\\n\");\n\n// -- SAVE ROW --\nconst sectorRanking = sectorsSorted\n  .map((s, i) => (i+1) + \". \" + s.symbol + \"(\" + (s.percentChange >= 0 ? \"+\" : \"\") + r(s.percentChange) + \"%)\")\n  .join(\", \");\nconst top3Sectors = sectorsSorted.slice(0, 3)\n  .map(s => s.symbol + \"(\" + pct(r(s.percentChange)) + \")\").join(\", \");\nconst bot3Sectors = sectorsSorted.slice(-3)\n  .map(s => s.symbol + \"(\" + pct(r(s.percentChange)) + \")\").join(\", \");\n\nconst saveRow = {\n  Date:              today,\n  Timestamp:         new Date().toISOString(),\n  Type:              \"EOD\",\n  SPY_Close:         spy?.price,\n  SPY_Change:        spy?.percentChange,\n  QQQ_Change:        qqq?.percentChange,\n  IWM_Change:        iwm?.percentChange,\n  DIA_Change:        dia?.percentChange,\n  VIX_Close:         vix?.price,\n  VIX_Change:        vix?.percentChange,\n  BreadthClose:      breadthClose,\n  CreditClose:       creditClose,\n  Yield10Y:          tnx?.price,\n  Yield10Y_Change:   tnx?.percentChange,\n  Gold_Change:       gold?.percentChange,\n  Oil_Change:        oil?.percentChange,\n  BTC_Change:        btc?.percentChange,\n  DXY_Change:        dxy?.percentChange,\n  RotationBias:      rotationBias,\n  RotationScore:     rotationScore,\n  SectorRanking:     sectorRanking,\n  Top3Sectors:       top3Sectors,\n  Bot3Sectors:       bot3Sectors,\n  XLK_Change:        sectorBySymbol[\"XLK\"]?.percentChange,\n  XLY_Change:        sectorBySymbol[\"XLY\"]?.percentChange,\n  XLF_Change:        sectorBySymbol[\"XLF\"]?.percentChange,\n  XLI_Change:        sectorBySymbol[\"XLI\"]?.percentChange,\n  XLB_Change:        sectorBySymbol[\"XLB\"]?.percentChange,\n  XLE_Change:        sectorBySymbol[\"XLE\"]?.percentChange,\n  XLV_Change:        sectorBySymbol[\"XLV\"]?.percentChange,\n  XLU_Change:        sectorBySymbol[\"XLU\"]?.percentChange,\n  XLRE_Change:       sectorBySymbol[\"XLRE\"]?.percentChange,\n  XLP_Change:        sectorBySymbol[\"XLP\"]?.percentChange,\n  XLC_Change:        sectorBySymbol[\"XLC\"]?.percentChange,\n  UnusualMovers:     unusualMovers.map(d => d.symbol + \"(\" + r(d.volumeRatio) + \"x)\").join(\", \"),\n  PM_Verdict:        pmData?.RiskVerdict  || \"\",\n  PM_FocusSectors:   pmData?.FocusSectors || \"\",\n  PM_RotationBias:   pmData?.RotationBias || \"\",\n};\n\nreturn [{ json: { message, saveRow } }];"
+      },
+      "name": "EOD Compute",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        624
+      ],
+      "id": "4d3f491a-3250-49f4-804b-bfaed4a178ba"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1479061663863799810/W6skLPPdxCuoHmXxa5hx0OIz1itY82s58QR0SxqAdEZIp5ygMza8s6j3WXJsmRXSObRm",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "username",
+              "value": "End of Day Recap"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "EOD to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3040,
+        336
+      ],
+      "id": "02e65d71-d391-4062-b905-ec24a5a64575"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $json.saveRow }];"
+      },
+      "name": "EOD Save Prep",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        624
+      ],
+      "id": "a0a4c678-eda4-4ff9-9ca9-d528c3b0932d"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "EOD",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Save EOD",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2816,
+        624
+      ],
+      "id": "e519e5d3-04c2-4a28-92f3-64b687b064d7",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Transform EOD sheet data to database format\nconst row = $json.saveRow || $json;  // support both direct and saveRow-wrapped input\nconst date = row.Date || row.date;\n\nreturn [{ json: {\n  date: date,\n  timestamp: row.Timestamp || new Date().toISOString(),\n  type: 'EOD',\n  spy_close: parseFloat(row.SPY_Close) || null,\n  spy_change: parseFloat(row.SPY_Change) || null,\n  qqq_change: parseFloat(row.QQQ_Change) || null,\n  iwm_change: parseFloat(row.IWM_Change) || null,\n  dia_change: parseFloat(row.DIA_Change) || null,\n  vix_close: parseFloat(row.VIX_Close) || null,\n  vix_change: parseFloat(row.VIX_Change) || null,\n  breadth_close: row.BreadthClose || null,\n  credit_close: row.CreditClose || null,\n  yield_10y: parseFloat(row.Yield10Y) || null,\n  yield_10y_change: parseFloat(row.Yield10Y_Change) || null,\n  rotation_bias: row.RotationBias || null,\n  rotation_score: parseInt(row.RotationScore) || null,\n  sector_ranking: row.SectorRanking || null,\n  top_3_sectors: row.Top3Sectors || null,\n  bot_3_sectors: row.Bot3Sectors || null,\n  xlk_change: parseFloat(row.XLK_Change) || null,\n  xly_change: parseFloat(row.XLY_Change) || null,\n  xlf_change: parseFloat(row.XLF_Change) || null,\n  xli_change: parseFloat(row.XLI_Change) || null,\n  xlb_change: parseFloat(row.XLB_Change) || null,\n  xle_change: parseFloat(row.XLE_Change) || null,\n  xlv_change: parseFloat(row.XLV_Change) || null,\n  xlu_change: parseFloat(row.XLU_Change) || null,\n  xlre_change: parseFloat(row.XLRE_Change) || null,\n  xlp_change: parseFloat(row.XLP_Change) || null,\n  xlc_change: parseFloat(row.XLC_Change) || null,\n  gold_change: parseFloat(row.Gold_Change) || null,\n  oil_change: parseFloat(row.Oil_Change) || null,\n  btc_change: parseFloat(row.BTC_Change) || null,\n  dxy_change: parseFloat(row.DXY_Change) || null,\n  unusual_movers: row.UnusualMovers || null,\n  pm_verdict: row.PM_Verdict || null,\n  pm_focus_sectors: row.PM_FocusSectors || null,\n  pm_rotation_bias: row.PM_RotationBias || null\n} }];"
+      },
+      "name": "EOD PostgreSQL Prep",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        816
+      ],
+      "id": "073bc80c-ebce-4f1f-9526-f7fe9442e694",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "schema": "public",
+        "table": "eod_market_data",
+        "columns": "date, timestamp, type, spy_close, spy_change, qqq_change, iwm_change, dia_change, vix_close, vix_change, breadth_close, credit_close, yield_10y, yield_10y_change, rotation_bias, rotation_score, sector_ranking, top_3_sectors, bot_3_sectors, xlk_change, xly_change, xlf_change, xli_change, xlb_change, xle_change, xlv_change, xlu_change, xlre_change, xlp_change, xlc_change, gold_change, oil_change, btc_change, dxy_change, unusual_movers, pm_verdict, pm_focus_sectors, pm_rotation_bias",
+        "options": {}
+      },
+      "name": "Store EOD to PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2816,
+        816
+      ],
+      "id": "77557521-b1c4-4904-85fa-b07e86b8e469",
+      "credentials": {
+        "postgres": {
+          "id": "hGubp1Cj0GkU084W",
+          "name": "Postgres account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 381255646,
+          "mode": "list",
+          "cachedResultName": "PreMarket",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs/edit#gid=381255646"
+        },
+        "options": {}
+      },
+      "name": "Read PreMarket Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1568,
+        720
+      ],
+      "id": "58ca7f07-8bd9-4030-ac96-f9cab6dd09e3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Pull today's pre-market row from Google Sheets\n// Passes it along as pmRow for the Compute node to use\nconst rows = $input.all().map(r => r.json);\nconst todayStr = new Date().toLocaleDateString('en-US', {\n  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'\n});\n// Find today's pre-market row\nconst pmRow = rows.find(r => r.Date === todayStr && (!r.Type || r.Type === 'PRE-MARKET')) || null;\nreturn [{ json: { pmRow } }];\n"
+      },
+      "name": "Extract Today PM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        720
+      ],
+      "id": "e41864a5-a199-4cf9-996a-87c78bf1b4ab"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "name": "Merge EOD + PM",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2016,
+        624
+      ],
+      "id": "22de73e1-70a4-4ecd-b747-df89352da8bf"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Stop execution if today is not a NYSE trading day\nconst now = new Date();\n\n// Weekend check (0=Sun, 6=Sat)\nconst dow = now.getUTCDay();\nif (dow === 0 || dow === 6) return [];\n\nconst year  = now.getUTCFullYear();\nconst month = String(now.getUTCMonth() + 1).padStart(2, '0');\nconst date  = String(now.getUTCDate()).padStart(2, '0');\nconst today = year + '-' + month + '-' + date;\n\nfunction nthWeekday(y, m, wd, n) {\n  const d = new Date(Date.UTC(y, m, 1));\n  let count = 0;\n  while (d.getUTCMonth() === m) {\n    if (d.getUTCDay() === wd && ++count === n) return d;\n    d.setUTCDate(d.getUTCDate() + 1);\n  }\n}\nfunction lastWeekday(y, m, wd) {\n  const d = new Date(Date.UTC(y, m + 1, 0));\n  while (d.getUTCDay() !== wd) d.setUTCDate(d.getUTCDate() - 1);\n  return d;\n}\nfunction observed(y, m, day) {\n  const d  = new Date(Date.UTC(y, m, day));\n  const wd = d.getUTCDay();\n  if (wd === 6) d.setUTCDate(day - 1);\n  if (wd === 0) d.setUTCDate(day + 1);\n  return d;\n}\nfunction fmt(d) {\n  return d.getUTCFullYear() + '-' +\n    String(d.getUTCMonth() + 1).padStart(2, '0') + '-' +\n    String(d.getUTCDate()).padStart(2, '0');\n}\nfunction goodFriday(y) {\n  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4;\n  const f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3);\n  const h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4;\n  const l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);\n  const mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;\n  const easter=new Date(Date.UTC(y,mo-1,da));\n  easter.setUTCDate(easter.getUTCDate()-2);\n  return easter;\n}\n\nconst holidays = new Set([\n  fmt(observed(year, 0,  1)),\n  fmt(nthWeekday(year, 0,  1, 3)),\n  fmt(nthWeekday(year, 1,  1, 3)),\n  fmt(goodFriday(year)),\n  fmt(lastWeekday(year, 4,  1)),\n  fmt(observed(year, 5,  19)),\n  fmt(observed(year, 6,  4)),\n  fmt(nthWeekday(year, 8,  1, 1)),\n  fmt(nthWeekday(year, 10, 4, 4)),\n  fmt(observed(year, 11, 25)),\n]);\n\nif (holidays.has(today)) return [];\n\nreturn [{ json: {} }];"
+      },
+      "name": "Market Open Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        624
+      ],
+      "id": "26e3ac26-cfa4-42e8-886c-590ad9a08d1a"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a market analysis expert for the ClearPoint Trading community. Enhance the end-of-day recap with insightful commentary that helps traders understand the day's action and position for tomorrow. Focus on key themes, actionable insights, and community-focused guidance. Keep the enhanced message concise and engaging for Discord. Add 2-3 paragraphs of AI analysis after the data tables.\n\nPlease enhance this end-of-day recap:\n\n{{ $json.message }}\n\nAdd thoughtful analysis about the day's market action, sector performance implications, risk management considerations, and potential setups for tomorrow. Make it conversational and helpful for active traders."
+      },
+      "name": "Enhance EOD with LLM",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        2464,
+        224
+      ],
+      "id": "ac38d1b9-731a-4d2c-8b29-da1452986f50"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "name": "Groq Model (EOD)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        2544,
+        448
+      ],
+      "id": "2e0118ff-623c-4919-bc87-f2fe54a8df7c",
+      "credentials": {
+        "groqApi": {
+          "id": "9ac0YQMSX8bcOoGi",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a9fc43ee-77d4-4f30-ab35-5b5899327113"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1441028378084769792/rajxn9_hCg3CeMx4TjNo5QAP8lh0_EBGUhgaByH4EStvfmro8GMrT9usoL9bpIQShbIa",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "=⚠️ **ERROR** in **{{ $json.workflow.name }}**\nNode: `{{ $json.execution.lastNodeExecuted }}`\nError: {{ $json.execution.error.message }}\nTime: {{ $now }}"
+            },
+            {
+              "name": "username",
+              "value": "Market Bot ⚠️ Error Alert"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Send Error to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        0
+      ],
+      "id": "35bb638f-8b30-4921-8a4b-b463fd266161"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split symbols into batches of <=20 (Yahoo spark API limit)\nconst allSymbols = $json.symbols.split(',');\nconst BATCH_SIZE = 20;\nconst output = [];\nfor (let i = 0; i < allSymbols.length; i += BATCH_SIZE) {\n  output.push({ json: { symbols: allSymbols.slice(i, i + BATCH_SIZE).join(',') } });\n}\nreturn output;"
+      },
+      "name": "Split Batches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        560
+      ],
+      "id": "45ab331a-5d3e-46a9-9d24-ee3e9340c634"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Yahoo spark returns flat object { ticker: { close, timestamp, ... } }\n// Merge all batch responses into one flat object\nconst combined = {};\nfor (const item of $input.all()) {\n  Object.assign(combined, item.json);\n}\nreturn [{ json: combined }];"
+      },
+      "name": "Combine Batches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        560
+      ],
+      "id": "7993eb9f-52de-4694-872f-19ac8392c66d"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split message into <=1950 char chunks at newline boundaries\n// (Discord hard limit is 2000; we use 1950 for safety margin)\nconst text = $json.text || $json.message || '';\nconst MAX  = 1950;\n\nif (text.length <= MAX) {\n  return [{ json: { text } }];\n}\n\nconst lines  = text.split('\\n');\nconst chunks = [];\nlet current  = '';\n\nfor (const line of lines) {\n  const candidate = current ? current + '\\n' + line : line;\n  if (candidate.length <= MAX) {\n    current = candidate;\n  } else {\n    if (current) chunks.push(current);\n    // Hard-split any single line that is itself too long\n    if (line.length > MAX) {\n      for (let i = 0; i < line.length; i += MAX) {\n        chunks.push(line.slice(i, i + MAX));\n      }\n      current = '';\n    } else {\n      current = line;\n    }\n  }\n}\nif (current) chunks.push(current);\n\nreturn chunks.map(chunk => ({ json: { text: chunk } }));"
+      },
+      "name": "Discord Split",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2816,
+        336
+      ],
+      "id": "03a57d33-6f4f-4790-b248-69f2cc6de68a"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule 4:30pm": {
+      "main": [
+        [
+          {
+            "node": "Market Open Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EOD Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Merge EOD + PM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read PreMarket Sheet": {
+      "main": [
+        [
+          {
+            "node": "Extract Today PM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Today PM": {
+      "main": [
+        [
+          {
+            "node": "Merge EOD + PM",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge EOD + PM": {
+      "main": [
+        [
+          {
+            "node": "EOD Compute",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EOD Compute": {
+      "main": [
+        [
+          {
+            "node": "Enhance EOD with LLM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "EOD Save Prep",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "EOD PostgreSQL Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhance EOD with LLM": {
+      "main": [
+        [
+          {
+            "node": "Discord Split",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Error to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EOD Save Prep": {
+      "main": [
+        [
+          {
+            "node": "Save EOD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EOD PostgreSQL Prep": {
+      "main": [
+        [
+          {
+            "node": "Store EOD to PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Market Open Check": {
+      "main": [
+        [
+          {
+            "node": "Read PreMarket Sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "EOD Tickers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Model (EOD)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Enhance EOD with LLM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EOD Tickers": {
+      "main": [
+        [
+          {
+            "node": "Split Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Batches": {
+      "main": [
+        [
+          {
+            "node": "EOD Yahoo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EOD Yahoo": {
+      "main": [
+        [
+          {
+            "node": "Combine Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Batches": {
+      "main": [
+        [
+          {
+            "node": "EOD Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EOD Parse": {
+      "main": [
+        [
+          {
+            "node": "EOD Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord Split": {
+      "main": [
+        [
+          {
+            "node": "EOD to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "fd7118d4-4ad3-4156-a53a-08bd438e0ecf",
+  "meta": {
+    "instanceId": "9c23eca2d653c8acdcca310f46e54a77c95d745d2d10583ce1e408a8ca6940dc"
+  },
+  "id": "7ZBC3PGqHWwDuWrZ",
+  "tags": []
+}

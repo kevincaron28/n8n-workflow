@@ -1,0 +1,917 @@
+{
+  "name": "Weekly Recap",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 17
+            }
+          ]
+        }
+      },
+      "name": "Friday 5PM Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -144,
+        608
+      ],
+      "id": "65926454-4d97-4a7b-b6a0-5d991dccf96f"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 381255646,
+          "mode": "list",
+          "cachedResultName": "PreMarket",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs/edit#gid=381255646"
+        },
+        "options": {}
+      },
+      "name": "Read PreMarket",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        80,
+        224
+      ],
+      "id": "8dd35d27-ffff-4b70-b8e3-5fa97005ed9a",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1263513689,
+          "mode": "list",
+          "cachedResultName": "EOD",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs/edit#gid=1263513689"
+        },
+        "options": {}
+      },
+      "name": "Read EOD",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        80,
+        416
+      ],
+      "id": "eb5e0862-53d6-4602-8c0c-a1b2a877e895",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1KVDQ-YkOU8SMeE8-wgFnUq4wE8soFeXrSFnRhmmmJxQ",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Economic Calendar",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1KVDQ-YkOU8SMeE8-wgFnUq4wE8soFeXrSFnRhmmmJxQ/edit#gid=0"
+        },
+        "options": {}
+      },
+      "name": "Read Econ Calendar",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        80,
+        608
+      ],
+      "id": "7fa1923e-9632-4b57-b9f8-53f170f72e03",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 405068271,
+          "mode": "list",
+          "cachedResultName": "News",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs/edit#gid=405068271"
+        },
+        "options": {}
+      },
+      "name": "Read News",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        80,
+        800
+      ],
+      "id": "d65f1fa3-c23c-4513-9551-c96a85a36949",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Collect all 4 inputs ──\nconst all = $input.all().map(i => i.json);\nconst pmRows   = all.filter(r => r.RiskVerdict  !== undefined);\nconst eodRows  = all.filter(r => r.SPY_Close    !== undefined);\nconst econRows = all.filter(r => r.Event        !== undefined);\nconst newsRows = all.filter(r => r.headline     !== undefined);\n\n// ── Week date range (Mon–Fri of current week) ──\nconst now = new Date();\nconst day = now.getDay(); // 0=Sun\nconst monday = new Date(now);\nmonday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));\nmonday.setHours(0,0,0,0);\nconst friday = new Date(monday);\nfriday.setDate(monday.getDate() + 4);\nfriday.setHours(23,59,59,999);\n\n// FIX 3: Partial week flag — true if run before Friday close\nconst isPartialWeek = day !== 5 && day !== 6; // not Fri/Sat\nconst dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];\nconst weekStatus = isPartialWeek\n  ? `PARTIAL — run on ${dayNames[day]}, auto-posts Friday 5PM ET`\n  : 'COMPLETE';\n\n// ── Robust date parser ──\nconst parseDate = raw => {\n  if (!raw) return null;\n  const s = String(raw).trim();\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return new Date(s + 'T12:00:00Z');\n  if (/^\\d{4}-\\d{2}-\\d{2}T/.test(s)) return new Date(s);\n  const d = new Date(s);\n  if (!isNaN(d)) return d;\n  if (s.includes('/')) {\n    const p = s.split('/');\n    return new Date(parseInt(p[2]), parseInt(p[0])-1, parseInt(p[1]), 12, 0, 0);\n  }\n  return null;\n};\n\nconst inThisWeek = raw => { const d = parseDate(raw); return d && d >= monday && d <= friday; };\n\nconst sortByDate = arr => [...arr].sort((a,b) => {\n  const da = parseDate(a.Date || a.date || a.Timestamp) || 0;\n  const db = parseDate(b.Date || b.date || b.Timestamp) || 0;\n  return da - db;\n});\n\nconst getRowDate = r => r.Date || (r.Timestamp ? r.Timestamp.split('T')[0] : null);\n\n// FIX 1: Deduplicate by date — keep last (most recent) row per date\nconst dedup = arr => {\n  const seen = {};\n  return arr.slice().reverse().filter(r => {\n    const key = String(getRowDate(r) || '').substring(0,10);\n    if (!key || seen[key]) return false;\n    seen[key] = true;\n    return true;\n  }).reverse();\n};\n\nconst pm   = dedup(sortByDate(pmRows.filter(r  => inThisWeek(getRowDate(r)))));\nconst eod  = dedup(sortByDate(eodRows.filter(r => inThisWeek(getRowDate(r)))));\nconst econ = econRows.filter(r => r['Log Mode'] === 'daily' && inThisWeek(r.Date));\nconst news = newsRows.filter(r => inThisWeek(r.date));\n\nconsole.log(`PM rows: ${pm.length}, EOD rows: ${eod.length}, Econ: ${econ.length}, News: ${news.length} | Week status: ${weekStatus}`);\n\n// ── Next-week econ preview (FIX 9) ──\nconst nextMonday = new Date(monday); nextMonday.setDate(monday.getDate() + 7);\nconst nextFriday = new Date(friday); nextFriday.setDate(friday.getDate() + 7);\nconst inNextWeek = raw => { const d = parseDate(raw); return d && d >= nextMonday && d <= nextFriday; };\nconst nextWeekEcon = econRows.filter(r =>\n  (r['Log Mode'] === 'weekly_preview' || r['Log Mode'] === 'daily') && inNextWeek(r.Date)\n);\nconst nextWeekLabel = nextMonday.toLocaleDateString('en-US',{month:'short',day:'numeric'}) +\n  ' – ' + nextFriday.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});\nconst nextEconSummary = nextWeekEcon.length\n  ? nextWeekEcon.map(r =>\n      (((r.Impact||'').toLowerCase()==='high') ? '🔴' : '🟡') +\n      ' ' + r.Event + ' — Fcst: '+(r.Forecast||'N/A')+' | Prev: '+(r.Previous||'N/A')\n    ).join('\\n')\n  : 'No high/medium impact events on the calendar.';\n\n// ── Helpers ──\nconst toF  = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };\nconst r2   = v => { const n = toF(v); return n === null ? null : Math.round(n*100)/100; };\nconst sign = v => (toF(v) || 0) >= 0 ? '+' : '';\nconst pct  = v => { const n = r2(v); return n === null ? 'N/A' : sign(n) + n + '%'; };\nconst shortDate = d => {\n  const s = String(d||'');\n  const parts = s.split(',');\n  if (parts.length >= 3) {\n    const dayAbbr = parts[0].trim().substring(0,3);\n    const md = parts[1].trim().split(' ');\n    const months = {January:'1',February:'2',March:'3',April:'4',May:'5',June:'6',July:'7',August:'8',September:'9',October:'10',November:'11',December:'12'};\n    return dayAbbr + ' ' + (months[md[0]]||md[0]) + '/' + md[1];\n  }\n  if (/^\\d{4}-\\d{2}-\\d{2}/.test(s)) {\n    const d = new Date(s + 'T12:00:00Z');\n    return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getUTCDay()] + ' ' + (d.getUTCMonth()+1) + '/' + d.getUTCDate();\n  }\n  return s.substring(0,10);\n};\n\nconst weekLabel = monday.toLocaleDateString('en-US',{month:'short',day:'numeric'}) +\n  ' – ' + friday.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});\n\n// ── Risk (FIX 2: include full verdict text in daily risk block) ──\nconst verdictEmoji = v => {\n  const s = (v||'').toLowerCase();\n  if (s.includes('risk-on') && !s.includes('lean')) return '🟢';\n  if (s.includes('lean') && s.includes('risk-on')) return '🟡';\n  if (s.includes('neutral')) return '⚪';\n  if (s.includes('lean') && s.includes('risk-off')) return '🟠';\n  if (s.includes('risk-off')) return '🔴';\n  return '⚪';\n};\nconst riskScores  = pm.map(r => parseInt(r.RiskScore)).filter(v => !isNaN(v));\nconst riskTrend   = riskScores.length >= 2\n  ? (riskScores.at(-1) > riskScores[0] ? 'Improving' : riskScores.at(-1) < riskScores[0] ? 'Deteriorating' : 'Stable')\n  : 'N/A';\nconst verdicts    = pm.map(r => r.RiskVerdict).filter(Boolean);\nconst verdictCount = verdicts.reduce((a,v)=>{a[v]=(a[v]||0)+1;return a;},{});\nconst dominantVerdict = Object.entries(verdictCount).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'N/A';\n\n// FIX 2: full verdict label with emoji in data block\nconst dailyRisk = pm.map(r =>\n  shortDate(r.Date) + ': ' + verdictEmoji(r.RiskVerdict) + ' ' + (r.RiskVerdict||'N/A') +\n  ' | Score: ' + (r.RiskScore||'N/A') +\n  (r.VIX ? ' | VIX: ' + r.VIX : '') +\n  (r.RiskFactors ? ' — ' + r.RiskFactors : '')\n).join('\\n');\n\nconst vixVals = [...pm.map(r=>toF(r.VIX)), ...eod.map(r=>toF(r.VIX_Close))].filter(v=>v!==null&&v>0);\nconst vixHigh = vixVals.length ? Math.max(...vixVals).toFixed(2) : 'N/A';\nconst vixLow  = vixVals.length ? Math.min(...vixVals).toFixed(2) : 'N/A';\nconst vixAvg  = vixVals.length ? (vixVals.reduce((a,b)=>a+b,0)/vixVals.length).toFixed(2) : 'N/A';\nconst regimes = [...new Set(pm.map(r=>r.Regime).filter(Boolean))].join(', ');\n\n// ── Market performance (FIX 4: week-to-date label) ──\nconst spyStart = pm[0]      ? toF(pm[0].SPY_Price)      : null;\nconst spyEnd   = eod.at(-1) ? toF(eod.at(-1).SPY_Close) : null;\nconst spyWeekVal = spyStart && spyEnd ? (((spyEnd-spyStart)/spyStart)*100).toFixed(2) : null;\nconst spyWeekStr = spyWeekVal !== null\n  ? (isPartialWeek ? `${pct(spyWeekVal)} week-to-date` : pct(spyWeekVal))\n  : 'N/A';\nconst dailyMoves = eod.map(r =>\n  shortDate(r.Date) + ': SPY ' + pct(r.SPY_Change) + ' | QQQ ' + pct(r.QQQ_Change) + ' | IWM ' + pct(r.IWM_Change)\n).join('\\n');\nconst yieldEnd   = eod.at(-1) ? toF(eod.at(-1).Yield10Y) : null;\nconst yieldStart = pm[0]      ? toF(pm[0].Yield10Y)       : null;\nconst yieldChg   = yieldStart !== null && yieldEnd !== null ? (yieldEnd - yieldStart).toFixed(3) : 'N/A';\nconst wkAvg = arr => arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2) : 'N/A';\nconst goldAvg = wkAvg(eod.map(r=>toF(r.Gold_Change)).filter(v=>v!==null));\nconst oilAvg  = wkAvg(eod.map(r=>toF(r.Oil_Change)).filter(v=>v!==null));\nconst btcAvg  = wkAvg(eod.map(r=>toF(r.BTC_Change)).filter(v=>v!==null));\nconst dxyAvg  = wkAvg(eod.map(r=>toF(r.DXY_Change)).filter(v=>v!==null));\n\n// ── Sectors ──\nconst sectors = ['XLK','XLY','XLF','XLI','XLB','XLE','XLV','XLU','XLRE','XLP','XLC'];\nconst sectorNames = {XLK:'Tech',XLY:'Cons Disc',XLF:'Financials',XLI:'Industrials',XLB:'Materials',XLE:'Energy',XLV:'Healthcare',XLU:'Utilities',XLRE:'Real Estate',XLP:'Cons Staples',XLC:'Comm Svcs'};\nconst sectorTotals = {};\nsectors.forEach(s => {\n  const vals = eod.map(r=>toF(r[s+'_Change'])).filter(v=>v!==null);\n  sectorTotals[s] = vals.length ? vals.reduce((a,b)=>a+b,0) : null;\n});\nconst rankedSectors = Object.entries(sectorTotals).filter(([,v])=>v!==null).sort((a,b)=>b[1]-a[1]);\nconst sectorSummary = rankedSectors.map(([s,v]) => s+'('+sectorNames[s]+'): '+pct(v)).join(', ');\nconst topSector = rankedSectors[0]     ? rankedSectors[0][0]     + ' (' + sectorNames[rankedSectors[0][0]]     + ')' : 'N/A';\nconst botSector = rankedSectors.at(-1) ? rankedSectors.at(-1)[0] + ' (' + sectorNames[rankedSectors.at(-1)[0]] + ')' : 'N/A';\nconst rotBias   = [...new Set(eod.map(r=>r.RotationBias).filter(Boolean))].join(', ');\nconst focusSecs = [...new Set(pm.map(r=>r.FocusSectors).filter(Boolean))].join(' / ');\n\n// ── Futures & breadth ──\nconst futuresSummary = pm.map(r =>\n  shortDate(r.Date) + ': ES ' + pct(r.ES_Change) + ' | NQ ' + pct(r.NQ_Change)\n).join('\\n');\nconst breadthSummary = eod.map(r =>\n  shortDate(r.Date) + ': ' + (r.BreadthClose||'N/A') + ' | Credit: ' + (r.CreditClose||'N/A')\n).join('\\n');\nconst unusualAll  = eod.flatMap(r=>(r.UnusualMovers||'').split(',').map(s=>s.trim())).filter(Boolean);\nconst unusualFreq = unusualAll.reduce((a,v)=>{a[v]=(a[v]||0)+1;return a;},{});\nconst topUnusual  = Object.entries(unusualFreq).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>k+(v>1?' ('+v+'d)':'')).join(', ');\n\n// ── Econ events (this week) ──\nconst econHigh = econ.filter(r=>(r.Impact||'').toLowerCase()==='high');\nconst econMed  = econ.filter(r=>(r.Impact||'').toLowerCase()==='medium');\nconst econSummary = [...econHigh,...econMed].map(r =>\n  r.Event + ' — Fcst: '+(r.Forecast||'N/A')+' | Act: '+(r.Actual||'pending')+' | Prev: '+(r.Previous||'N/A')\n).join('\\n');\n\n// ── News ──\nconst catGroups = {};\nnews.forEach(r => { const c=(r.category||'general').toLowerCase(); if(!catGroups[c])catGroups[c]=[]; catGroups[c].push(r); });\nconst newsSummary = Object.entries(catGroups).map(([cat,items]) =>\n  cat.toUpperCase() + ' (' + items.length + ' stories):\\n' +\n  items.slice(-4).map(r => '  • ' + r.headline).join('\\n')\n).join('\\n\\n');\n\n// ── Full data block ──\nconst dataBlock = `WEEK OF: ${weekLabel} [${weekStatus}]\n\n=== RISK ENVIRONMENT ===\nDominant Tone: ${dominantVerdict} | Trend: ${riskTrend} | VIX: ${vixLow}–${vixHigh} (avg ${vixAvg}) | Regime: ${regimes}\nDaily Risk (emoji + full label + score + VIX):\n${dailyRisk || 'No pre-market data'}\n\n=== MARKET PERFORMANCE ===\nSPY: ${spyWeekStr} (closed ${spyEnd !== null ? spyEnd.toFixed(2) : 'N/A'})\nDaily Moves (EOD):\n${dailyMoves || 'No EOD data'}\n10Y Yield: ${yieldEnd !== null ? yieldEnd+'%' : 'N/A'} (week chg: ${yieldChg !== 'N/A' ? (parseFloat(yieldChg)>=0?'+':'')+yieldChg+'bps' : 'N/A'})\nGold avg: ${pct(goldAvg)} | Oil: ${pct(oilAvg)} | BTC: ${pct(btcAvg)} | DXY: ${pct(dxyAvg)}\n\n=== SECTOR ROTATION ===\nTop Sector: ${topSector} | Bottom: ${botSector}\nRotation Bias: ${rotBias || 'N/A'} | Pre-Market Focus: ${focusSecs || 'N/A'}\nFull Ranking: ${sectorSummary || 'No EOD sector data'}\n\n=== FUTURES & BREADTH ===\nPre-Market Futures:\n${futuresSummary || 'No pre-market data'}\nBreadth & Credit (EOD):\n${breadthSummary || 'No EOD data'}\nUnusual Volume Movers: ${topUnusual || 'None flagged'}\n\n=== KEY ECONOMIC EVENTS (THIS WEEK) ===\n${econSummary || 'No high/medium impact events logged this week.'}\n\n=== NEXT WEEK CALENDAR (${nextWeekLabel}) ===\n${nextEconSummary}\n\n=== NEWS THEMES ===\n${newsSummary || 'No news logged this week.'}`;\n\nreturn [{ json: { dataBlock, weekLabel, isPartialWeek, weekStatus, nextWeekLabel } }];"
+      },
+      "name": "Compile Raw Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        512
+      ],
+      "id": "2bdcb801-53a5-4784-b461-54466657bf23"
+    },
+    {
+      "parameters": {
+        "jsCode": "const { dataBlock, weekLabel, isPartialWeek, weekStatus, nextWeekLabel } = $input.first().json;\n\nconst partialNote = isPartialWeek ? ` ⚠️ PARTIAL WEEK — full recap posts Friday 5PM ET` : '';\n\nconst discordPrompt = `You are a sharp, confident swing trader writing a weekly market recap for a trading Discord community. Tone: direct, opinionated, data-driven — like a seasoned trader debriefing the team after Friday close.\n\nWrite the recap as EXACTLY 3 messages separated by: ---MSG_BREAK---\n\n━━━ MESSAGE 1 — HEADER + RISK + MARKET PERFORMANCE ━━━\nOpen with: 📊 **WEEKLY RECAP — Week of ${weekLabel}**${partialNote ? ' `' + partialNote + '`' : ''}\nOne sentence: what kind of week was it (risk tone + SPY direction).\n\n**🚦 RISK ENVIRONMENT**\nShow a compact table for each day. MUST include both emoji AND full text label:\n| Day | Verdict | Score | VIX |\n| Mon 3/9 | 🟠 LEANING RISK-OFF | -1 | 20.00 |\n(Use exactly: 🟢 RISK-ON, 🟡 LEANING RISK-ON, ⚪ NEUTRAL, 🟠 LEANING RISK-OFF, 🔴 RISK-OFF)\nState dominant tone, trend (Improving/Deteriorating/Stable), VIX range/avg, and one line on what it means for swing traders.\n\n**📊 MARKET PERFORMANCE**\nSPY: week return (or week-to-date if partial) and closing price.\nEach day as: \\`Mon: SPY +X% | QQQ +X% | IWM +X%\\`\n10Y yield and weekly change. One line: Gold / Oil / BTC / DXY direction.\n\n━━━ MESSAGE 2 — SECTORS + FUTURES + BREADTH ━━━\n**🗺️ SECTOR ROTATION**\nFull ranking best→worst, use 🥇🥈🥉 top 3, 🔻 bottom 2.\nCall out the rotation story: risk-on (XLY/XLK/XLF leading) vs defensive (XLV/XLU/XLP).\nState rotation bias and pre-market focus sectors.\n\n**📡 FUTURES & BREADTH**\nDaily ES/NQ pre-market levels — were they reliable signals?\nBreadth: broad or narrow rally/selloff?\nCredit signal: compressing or expanding?\nUnusual volume movers worth flagging.\n\n━━━ MESSAGE 3 — ECON EVENTS + UPCOMING + NEWS + CLOSE ━━━\n**📆 ECONOMIC EVENTS (THIS WEEK)**\nList each high/medium impact event: name, forecast vs actual, beat/miss.\nIf none: say the week was data-light and what that means for price action.\n\n**📅 NEXT WEEK: ${nextWeekLabel}**\nList upcoming key events from the calendar data. Format: 🔴/🟡 Event — Fcst: X | Prev: X\nIf none: note it will be another data-light week.\n\n**📰 MARKET THEMES**\nTop 2-3 news themes that drove sentiment. Specific headlines if available.\n\n**🎯 WEEK SUMMARY**\nOne punchy paragraph: what defined this week, what traders should take away.\n\nCRITICAL RULES:\n1. ONLY Message 3 may end with: _📊 Full breakdown on Substack & Whop — link in bio_. NEVER put this CTA in Messages 1 or 2.\n2. Each message MUST be under 1900 characters.\n3. Risk table MUST show both emoji AND full text verdict label on every row.\n4. Skip fields that are N/A — do NOT write \"no data available\" or \"N/A\" repeatedly.\n5. Use Discord markdown: **bold**, \\`monospace\\`. No excessive emojis — anchor section headers only.\n6. Every sentence must add signal. No filler.\n\nDATA:\n${dataBlock}`;\n\nconst substackPrompt = `You are a professional swing trader and market analyst writing a premium weekly market recap for Substack and Whop subscribers. Confident, analytical, and educational — the kind of recap a serious trader bookmarks before Monday open.\n\n## 📊 Week of ${weekLabel} — Market Recap${isPartialWeek ? ' (Partial — through current day)' : ''}\n\n## Week in Review\n2-3 sentences. What defined this week? Confident summary of risk tone, market direction, and the single biggest theme. Don't hedge — call it.\n\n## Risk Environment\nDiscuss daily risk scores and what they told traders each morning. Explain the VIX range in context. What does the trend (Improving/Deteriorating/Stable) mean for position sizing? Mention regime and breadth/credit signals.\n\n## Market Performance\nSPY weekly return (or week-to-date) and closing price. Walk through daily moves. QQQ vs IWM divergence — what does it say about growth vs small-cap sentiment? Cover yields and give brief color on Gold/Oil/BTC/DXY.\n\n## Sector Rotation & Themes\nFull sector rankings. What does the rotation MEAN — risk-on vs defensive? Connect to the broader risk environment. Mention pre-market focus sectors and whether they delivered.\n\n## Pre-Market Signals vs Reality\nHow did ES/NQ pre-market call each day? Were they reliable? What did breadth and credit signals confirm or contradict?\n\n## Key Economic Events\nFor each logged event: what was forecast, what came in, beat or miss, likely market reaction. If data-light, explain what that means for price action.\n\n## Looking Ahead — ${nextWeekLabel}\nKey events on deck for next week. What should traders be watching? VIX level, key sectors, scheduled catalysts. End with one strong sentence capturing overall posture.\n\n---\n*Join the ClearPoint Trading community on Whop for daily pre-market briefings, EOD recaps, and live trade alerts.*\n\nRULES:\n- 700–1000 words. Confident and opinionated.\n- ## headers exactly as shown above.\n- **bold** for key numbers and signals.\n- No bullet lists inside paragraphs — write in prose.\n- If data is missing, one sentence then move on.\n\nDATA:\n${dataBlock}`;\n\nreturn [{ json: { discordPrompt, substackPrompt, dataBlock, weekLabel } }];"
+      },
+      "name": "Build Prompts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        512
+      ],
+      "id": "2fbfff42-884c-43cb-ac89-b2764608f064"
+    },
+    {
+      "parameters": {
+        "jsCode": "// LLM chain nodes output { text: '...' }\nconst discordRaw  = $('Groq Discord Version').first().json?.text || '';\nconst substackRaw = $('Groq Substack Version').first().json?.text || '';\nconst { weekLabel } = $('Build Prompts').first().json;\n\n// Split discord into chunks on ---MSG_BREAK---\nconst discordChunks = discordRaw.split('---MSG_BREAK---').map(s => s.trim()).filter(Boolean);\n\n// Ensure max 3 chunks, each under 1900 chars\nconst safeChunks = discordChunks.slice(0, 3).map(chunk =>\n  chunk.length > 1900 ? chunk.substring(0, 1897) + '...' : chunk\n);\n\nconst discordMsg1 = safeChunks[0] || '_(no content)_';\nconst discordMsg2 = safeChunks[1] || '';\nconst discordMsg3 = safeChunks[2] || '';\n\nconst now = new Date().toISOString();\n\nreturn [{ json: {\n  weekLabel,\n  discordMsg1,\n  discordMsg2,\n  discordMsg3,\n  discordFull: discordRaw,\n  substackFull: substackRaw,\n  generatedAt: now\n}}];"
+      },
+      "name": "Parse LLM Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1552,
+        416
+      ],
+      "id": "09dd269d-d56d-4833-982b-57ae56a75934"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1Vx9NF424Ve0GU4VLZn1Owp66eUehpQrrpr7M-qJfl2A",
+          "mode": "list",
+          "cachedResultName": "Weekly Recap",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Vx9NF424Ve0GU4VLZn1Owp66eUehpQrrpr7M-qJfl2A/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "WeeklyRecaps",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Vx9NF424Ve0GU4VLZn1Owp66eUehpQrrpr7M-qJfl2A/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Week": "={{ $json.weekLabel }}",
+            "Generated At": "={{ $json.generatedAt }}",
+            "Discord Version": "={{ $json.discordFull }}",
+            "Substack Version": "={{ $json.substackFull }}",
+            "Status": "PENDING"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Week",
+              "displayName": "Week",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Generated At",
+              "displayName": "Generated At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Discord Version",
+              "displayName": "Discord Version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Substack Version",
+              "displayName": "Substack Version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Save to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1776,
+        224
+      ],
+      "id": "e22be48e-0375-46d7-a0cd-07111e1e5144",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1479062205931720704/I-bWkhjT2V7th6SPxJu8YwRAigS6-4YFqHpDGxyLErMEPLa0LGtyRN63_oqYKywydDgo",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.discordMsg1 }}"
+            },
+            {
+              "name": "username",
+              "value": "Market Bot 📊 Weekly Recap"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Post Discord Msg 1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1776,
+        416
+      ],
+      "id": "1ace7af5-eb2f-425c-ac4b-30760d2daced"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1479062205931720704/I-bWkhjT2V7th6SPxJu8YwRAigS6-4YFqHpDGxyLErMEPLa0LGtyRN63_oqYKywydDgo",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.discordMsg2 }}"
+            },
+            {
+              "name": "username",
+              "value": "Market Bot 📊 Weekly Recap"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Post Discord Msg 2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1776,
+        608
+      ],
+      "id": "9b1283e7-a63a-4100-86bc-c9d417882c0f"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1479062205931720704/I-bWkhjT2V7th6SPxJu8YwRAigS6-4YFqHpDGxyLErMEPLa0LGtyRN63_oqYKywydDgo",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.discordMsg3 }}"
+            },
+            {
+              "name": "username",
+              "value": "Market Bot 📊 Weekly Recap"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Post Discord Msg 3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1776,
+        800
+      ],
+      "id": "a08f06bf-1d8d-4c5d-b140-ff73a8a5bafe"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1Vx9NF424Ve0GU4VLZn1Owp66eUehpQrrpr7M-qJfl2A",
+          "mode": "list",
+          "cachedResultName": "Weekly Recap",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Vx9NF424Ve0GU4VLZn1Owp66eUehpQrrpr7M-qJfl2A/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "WeeklyRecaps",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Vx9NF424Ve0GU4VLZn1Owp66eUehpQrrpr7M-qJfl2A/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Week": "={{ $('Parse LLM Output').first().json.weekLabel }}",
+            "Status": "APPROVED & POSTED",
+            "Generated At": "={{ $('Parse LLM Output').first().json.generatedAt }}"
+          },
+          "matchingColumns": [
+            "Generated At"
+          ],
+          "schema": [
+            {
+              "id": "Week",
+              "displayName": "Week",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Generated At",
+              "displayName": "Generated At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Discord Version",
+              "displayName": "Discord Version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Substack Version",
+              "displayName": "Substack Version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Update Status to Posted",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        2000,
+        608
+      ],
+      "id": "5da56eec-b58e-4a67-8222-81f07c10d640",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.discordPrompt }}"
+      },
+      "name": "Groq Discord Version",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        976,
+        304
+      ],
+      "id": "b371603c-8c81-4b7c-832b-a81c10ca76e0"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.substackPrompt }}"
+      },
+      "name": "Groq Substack Version",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        976,
+        816
+      ],
+      "id": "1989609e-6516-4375-8b17-8887aeb7d42e"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "temperature": 0.6
+        }
+      },
+      "name": "Groq Model (Discord)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        528
+      ],
+      "id": "3d48fecc-811e-400d-8f9a-f579533a289a",
+      "credentials": {
+        "groqApi": {
+          "id": "9ac0YQMSX8bcOoGi",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "name": "Groq Model (Substack)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        1040
+      ],
+      "id": "34c1e055-36dc-4642-8d18-e02b56228b8a",
+      "credentials": {
+        "groqApi": {
+          "id": "9ac0YQMSX8bcOoGi",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "name": "Merge Sheets",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        304,
+        480
+      ],
+      "id": "bf755976-b59a-46b1-97af-a43d0ce936f1"
+    },
+    {
+      "parameters": {},
+      "name": "Merge Groq",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1328,
+        416
+      ],
+      "id": "4fdc535e-a8aa-4865-8ca0-a67a78f332d6"
+    },
+    {
+      "parameters": {},
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        0
+      ],
+      "id": "3c9f7835-3ac9-4b0d-aa99-41e6806a199b"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1441028378084769792/rajxn9_hCg3CeMx4TjNo5QAP8lh0_EBGUhgaByH4EStvfmro8GMrT9usoL9bpIQShbIa",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "=⚠️ **ERROR** in **{{ $json.workflow.name }}**\nNode: `{{ $json.execution.lastNodeExecuted }}`\nError: {{ $json.execution.error.message }}\nTime: {{ $now }}"
+            },
+            {
+              "name": "username",
+              "value": "Market Bot ⚠️ Error Alert"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Send Error to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        80,
+        0
+      ],
+      "id": "ab2fc7cb-4e22-4463-a04e-4bf38780f070"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "CONFIGURE_ME: https://api.substack.com/api/v1/drafts (requires Substack API access — see docs.substack.com)",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "CONFIGURE_ME: Bearer YOUR_SUBSTACK_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "draft_title",
+              "value": "={{ 'Weekly Market Recap — ' + new Date().toLocaleDateString('en-US', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) }}"
+            },
+            {
+              "name": "draft_body",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "draft_subtitle",
+              "value": "Your weekly deep-dive into market conditions, sector rotation, and key economic events."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0f915bb3-b70b-45b0-9d28-92934e8ec299",
+      "name": "Post to Substack [CONFIGURE_ME]",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1328,
+        864
+      ],
+      "disabled": true,
+      "notes": "CONFIGURE: Replace URL and Authorization header with real Substack API credentials. See https://substack.com/api for setup."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Friday 5PM Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read PreMarket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read EOD",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Econ Calendar",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read PreMarket": {
+      "main": [
+        [
+          {
+            "node": "Merge Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Raw Data": {
+      "main": [
+        [
+          {
+            "node": "Build Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompts": {
+      "main": [
+        [
+          {
+            "node": "Groq Discord Version",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Groq Substack Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Discord Version": {
+      "main": [
+        [
+          {
+            "node": "Merge Groq",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LLM Output": {
+      "main": [
+        [
+          {
+            "node": "Save to Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post Discord Msg 1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post Discord Msg 2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post Discord Msg 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Discord Msg 1": {
+      "main": [
+        [
+          {
+            "node": "Update Status to Posted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Discord Msg 2": {
+      "main": [
+        [
+          {
+            "node": "Update Status to Posted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Discord Msg 3": {
+      "main": [
+        [
+          {
+            "node": "Update Status to Posted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Error to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Model (Discord)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Groq Discord Version",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Model (Substack)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Groq Substack Version",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Substack Version": {
+      "main": [
+        [
+          {
+            "node": "Merge Groq",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Post to Substack [CONFIGURE_ME]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read EOD": {
+      "main": [
+        [
+          {
+            "node": "Merge Sheets",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Read Econ Calendar": {
+      "main": [
+        [
+          {
+            "node": "Merge Sheets",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Read News": {
+      "main": [
+        [
+          {
+            "node": "Merge Sheets",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge Sheets": {
+      "main": [
+        [
+          {
+            "node": "Compile Raw Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Groq": {
+      "main": [
+        [
+          {
+            "node": "Parse LLM Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a470aa3f-65e5-4f95-acec-efb0168a65a5",
+  "meta": {
+    "instanceId": "9c23eca2d653c8acdcca310f46e54a77c95d745d2d10583ce1e408a8ca6940dc"
+  },
+  "id": "HLm3K6RDkLZJn1S2",
+  "tags": []
+}

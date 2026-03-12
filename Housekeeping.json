@@ -1,0 +1,853 @@
+{
+  "name": "Housekeeping",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "name": "Monday 8AM Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        800,
+        208
+      ],
+      "id": "622c340b-1494-45c1-9ee5-f3f0712efcfd"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if today is Monday\nconst now = new Date();\nconst day = now.getDay();\nif (day !== 1) return []; // 0=Sun, 1=Mon, 2=Tue, etc.\nreturn [{ json: { status: 'Monday detected, proceeding with housekeeping' } }];"
+      },
+      "name": "Monday Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        208
+      ],
+      "id": "f66873ad-9067-4b81-aebc-638f89ad72b7"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "PreMarket",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Read PreMarket Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1280,
+        208
+      ],
+      "id": "062ecebb-041a-46b5-91a3-8d0c275a1895",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "EOD",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Read EOD Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1280,
+        368
+      ],
+      "id": "0694c547-284a-4db2-8162-a6d2446e784c",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const row = $json;\nconst p = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };\nconst i = v => { const n = parseInt(v); return isNaN(n) ? null : n; };\nreturn [{ json: {\n  date: row.Date,\n  timestamp: row.Timestamp || new Date().toISOString(),\n  type: row.Type || 'PRE-MARKET',\n  risk_verdict: row.RiskVerdict || null,\n  risk_score: i(row.RiskScore),\n  risk_factors: row.RiskFactors || null,\n  focus_sectors: row.FocusSectors || null,\n  top_3_sectors: row.Top3Sectors || null,\n  bot_3_sectors: row.Bot3Sectors || null,\n  rotation_bias: row.RotationBias || null,\n  rotation_score: i(row.RotationScore),\n  sector_ranking: row.SectorRanking || null,\n  vix: p(row.VIX),\n  regime: row.Regime || null,\n  leadership: row.Leadership || null,\n  breadth_signal: row.BreadthSignal || null,\n  credit_signal: row.CreditSignal || null,\n  breadth: row.Breadth || null,\n  liquidity: row.Liquidity || null,\n  es_price: p(row.ES_Price),\n  es_change: p(row.ES_Change),\n  nq_change: p(row.NQ_Change),\n  spy_price: p(row.SPY_Price),\n  spy_change: p(row.SPY_Change),\n  qqq_change: p(row.QQQ_Change),\n  iwm_change: p(row.IWM_Change),\n  gold_change: p(row.Gold_Change),\n  oil_change: p(row.Oil_Change),\n  btc_change: p(row.BTC_Change),\n  yield_10y: p(row.Yield10Y),\n  dxy_change: p(row.DXY_Change),\n  smh_change: p(row.SMH_Change),\n  iyt_change: p(row.IYT_Change),\n  xlk_change: p(row.XLK_Change),\n  xly_change: p(row.XLY_Change),\n  xlf_change: p(row.XLF_Change),\n  xli_change: p(row.XLI_Change),\n  xlb_change: p(row.XLB_Change),\n  xle_change: p(row.XLE_Change),\n  xlv_change: p(row.XLV_Change),\n  xlu_change: p(row.XLU_Change),\n  xlre_change: p(row.XLRE_Change),\n  xlp_change: p(row.XLP_Change),\n  xlc_change: p(row.XLC_Change)\n} }];"
+      },
+      "name": "Transform PreMarket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        208
+      ],
+      "id": "fb2b3c98-ae49-4271-b6ca-bf3ee76371ac"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Transform EOD sheet data to database format\nconst row = $json;\nconst date = row.Date || row.date;\n\nreturn [{ json: {\n  date: date,\n  timestamp: row.Timestamp || new Date().toISOString(),\n  type: 'EOD',\n  spy_close: parseFloat(row.SPY_Close) || null,\n  spy_change: parseFloat(row.SPY_Change) || null,\n  qqq_change: parseFloat(row.QQQ_Change) || null,\n  iwm_change: parseFloat(row.IWM_Change) || null,\n  dia_change: parseFloat(row.DIA_Change) || null,\n  vix_close: parseFloat(row.VIX_Close) || null,\n  vix_change: parseFloat(row.VIX_Change) || null,\n  breadth_close: row.BreadthClose || null,\n  credit_close: row.CreditClose || null,\n  yield_10y: parseFloat(row.Yield10Y) || null,\n  yield_10y_change: parseFloat(row.Yield10Y_Change) || null,\n  rotation_bias: row.RotationBias || null,\n  rotation_score: parseInt(row.RotationScore) || null,\n  sector_ranking: row.SectorRanking || null,\n  top_3_sectors: row.Top3Sectors || null,\n  bot_3_sectors: row.Bot3Sectors || null,\n  xlk_change: parseFloat(row.XLK_Change) || null,\n  xly_change: parseFloat(row.XLY_Change) || null,\n  xlf_change: parseFloat(row.XLF_Change) || null,\n  xli_change: parseFloat(row.XLI_Change) || null,\n  xlb_change: parseFloat(row.XLB_Change) || null,\n  xle_change: parseFloat(row.XLE_Change) || null,\n  xlv_change: parseFloat(row.XLV_Change) || null,\n  xlu_change: parseFloat(row.XLU_Change) || null,\n  xlre_change: parseFloat(row.XLRE_Change) || null,\n  xlp_change: parseFloat(row.XLP_Change) || null,\n  xlc_change: parseFloat(row.XLC_Change) || null,\n  gold_change: parseFloat(row.Gold_Change) || null,\n  oil_change: parseFloat(row.Oil_Change) || null,\n  btc_change: parseFloat(row.BTC_Change) || null,\n  dxy_change: parseFloat(row.DXY_Change) || null,\n  unusual_movers: row.UnusualMovers || null,\n  pm_verdict: row.PM_Verdict || null,\n  pm_focus_sectors: row.PM_FocusSectors || null,\n  pm_rotation_bias: row.PM_RotationBias || null\n} }];"
+      },
+      "name": "Transform EOD",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        368
+      ],
+      "id": "b9790729-71c3-4c4b-a7dd-ce8b99cb82bd"
+    },
+    {
+      "parameters": {
+        "schema": "public",
+        "table": "premarket_data",
+        "columns": "date, timestamp, type, risk_verdict, risk_score, risk_factors, focus_sectors, top_3_sectors, bot_3_sectors, rotation_bias, rotation_score, sector_ranking, vix, regime, leadership, breadth_signal, credit_signal, breadth, liquidity, es_price, es_change, nq_change, spy_price, spy_change, qqq_change, iwm_change, gold_change, oil_change, btc_change, yield_10y, dxy_change, smh_change, iyt_change, xlk_change, xly_change, xlf_change, xli_change, xlb_change, xle_change, xlv_change, xlu_change, xlre_change, xlp_change, xlc_change",
+        "options": {}
+      },
+      "name": "Store PreMarket to PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1760,
+        208
+      ],
+      "id": "dae5fd3c-f4ba-42b7-966d-86787ab472fa",
+      "credentials": {
+        "postgres": {
+          "id": "hGubp1Cj0GkU084W",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": "public",
+        "table": "eod_market_data",
+        "columns": {
+          "0": "d",
+          "1": "a",
+          "2": "t",
+          "3": "e",
+          "4": ",",
+          "5": " ",
+          "6": "t",
+          "7": "i",
+          "8": "m",
+          "9": "e",
+          "10": "s",
+          "11": "t",
+          "12": "a",
+          "13": "m",
+          "14": "p",
+          "15": ",",
+          "16": " ",
+          "17": "t",
+          "18": "y",
+          "19": "p",
+          "20": "e",
+          "21": ",",
+          "22": " ",
+          "23": "s",
+          "24": "p",
+          "25": "y",
+          "26": "_",
+          "27": "c",
+          "28": "l",
+          "29": "o",
+          "30": "s",
+          "31": "e",
+          "32": ",",
+          "33": " ",
+          "34": "s",
+          "35": "p",
+          "36": "y",
+          "37": "_",
+          "38": "c",
+          "39": "h",
+          "40": "a",
+          "41": "n",
+          "42": "g",
+          "43": "e",
+          "44": ",",
+          "45": " ",
+          "46": "q",
+          "47": "q",
+          "48": "q",
+          "49": "_",
+          "50": "c",
+          "51": "h",
+          "52": "a",
+          "53": "n",
+          "54": "g",
+          "55": "e",
+          "56": ",",
+          "57": " ",
+          "58": "i",
+          "59": "w",
+          "60": "m",
+          "61": "_",
+          "62": "c",
+          "63": "h",
+          "64": "a",
+          "65": "n",
+          "66": "g",
+          "67": "e",
+          "68": ",",
+          "69": " ",
+          "70": "d",
+          "71": "i",
+          "72": "a",
+          "73": "_",
+          "74": "c",
+          "75": "h",
+          "76": "a",
+          "77": "n",
+          "78": "g",
+          "79": "e",
+          "80": ",",
+          "81": " ",
+          "82": "v",
+          "83": "i",
+          "84": "x",
+          "85": "_",
+          "86": "c",
+          "87": "l",
+          "88": "o",
+          "89": "s",
+          "90": "e",
+          "91": ",",
+          "92": " ",
+          "93": "v",
+          "94": "i",
+          "95": "x",
+          "96": "_",
+          "97": "c",
+          "98": "h",
+          "99": "a",
+          "100": "n",
+          "101": "g",
+          "102": "e",
+          "103": ",",
+          "104": " ",
+          "105": "b",
+          "106": "r",
+          "107": "e",
+          "108": "a",
+          "109": "d",
+          "110": "t",
+          "111": "h",
+          "112": "_",
+          "113": "c",
+          "114": "l",
+          "115": "o",
+          "116": "s",
+          "117": "e",
+          "118": ",",
+          "119": " ",
+          "120": "c",
+          "121": "r",
+          "122": "e",
+          "123": "d",
+          "124": "i",
+          "125": "t",
+          "126": "_",
+          "127": "c",
+          "128": "l",
+          "129": "o",
+          "130": "s",
+          "131": "e",
+          "132": ",",
+          "133": " ",
+          "134": "y",
+          "135": "i",
+          "136": "e",
+          "137": "l",
+          "138": "d",
+          "139": "_",
+          "140": "1",
+          "141": "0",
+          "142": "y",
+          "143": ",",
+          "144": " ",
+          "145": "y",
+          "146": "i",
+          "147": "e",
+          "148": "l",
+          "149": "d",
+          "150": "_",
+          "151": "1",
+          "152": "0",
+          "153": "y",
+          "154": "_",
+          "155": "c",
+          "156": "h",
+          "157": "a",
+          "158": "n",
+          "159": "g",
+          "160": "e",
+          "161": ",",
+          "162": " ",
+          "163": "r",
+          "164": "o",
+          "165": "t",
+          "166": "a",
+          "167": "t",
+          "168": "i",
+          "169": "o",
+          "170": "n",
+          "171": "_",
+          "172": "b",
+          "173": "i",
+          "174": "a",
+          "175": "s",
+          "176": ",",
+          "177": " ",
+          "178": "r",
+          "179": "o",
+          "180": "t",
+          "181": "a",
+          "182": "t",
+          "183": "i",
+          "184": "o",
+          "185": "n",
+          "186": "_",
+          "187": "s",
+          "188": "c",
+          "189": "o",
+          "190": "r",
+          "191": "e",
+          "192": ",",
+          "193": " ",
+          "194": "s",
+          "195": "e",
+          "196": "c",
+          "197": "t",
+          "198": "o",
+          "199": "r",
+          "200": "_",
+          "201": "r",
+          "202": "a",
+          "203": "n",
+          "204": "k",
+          "205": "i",
+          "206": "n",
+          "207": "g",
+          "208": ",",
+          "209": " ",
+          "210": "t",
+          "211": "o",
+          "212": "p",
+          "213": "_",
+          "214": "3",
+          "215": "_",
+          "216": "s",
+          "217": "e",
+          "218": "c",
+          "219": "t",
+          "220": "o",
+          "221": "r",
+          "222": "s",
+          "223": ",",
+          "224": " ",
+          "225": "b",
+          "226": "o",
+          "227": "t",
+          "228": "_",
+          "229": "3",
+          "230": "_",
+          "231": "s",
+          "232": "e",
+          "233": "c",
+          "234": "t",
+          "235": "o",
+          "236": "r",
+          "237": "s",
+          "238": ",",
+          "239": " ",
+          "240": "x",
+          "241": "l",
+          "242": "k",
+          "243": "_",
+          "244": "c",
+          "245": "h",
+          "246": "a",
+          "247": "n",
+          "248": "g",
+          "249": "e",
+          "250": ",",
+          "251": " ",
+          "252": "x",
+          "253": "l",
+          "254": "y",
+          "255": "_",
+          "256": "c",
+          "257": "h",
+          "258": "a",
+          "259": "n",
+          "260": "g",
+          "261": "e",
+          "262": ",",
+          "263": " ",
+          "264": "x",
+          "265": "l",
+          "266": "f",
+          "267": "_",
+          "268": "c",
+          "269": "h",
+          "270": "a",
+          "271": "n",
+          "272": "g",
+          "273": "e",
+          "274": ",",
+          "275": " ",
+          "276": "x",
+          "277": "l",
+          "278": "i",
+          "279": "_",
+          "280": "c",
+          "281": "h",
+          "282": "a",
+          "283": "n",
+          "284": "g",
+          "285": "e",
+          "286": ",",
+          "287": " ",
+          "288": "x",
+          "289": "l",
+          "290": "b",
+          "291": "_",
+          "292": "c",
+          "293": "h",
+          "294": "a",
+          "295": "n",
+          "296": "g",
+          "297": "e",
+          "298": ",",
+          "299": " ",
+          "300": "x",
+          "301": "l",
+          "302": "e",
+          "303": "_",
+          "304": "c",
+          "305": "h",
+          "306": "a",
+          "307": "n",
+          "308": "g",
+          "309": "e",
+          "310": ",",
+          "311": " ",
+          "312": "x",
+          "313": "l",
+          "314": "v",
+          "315": "_",
+          "316": "c",
+          "317": "h",
+          "318": "a",
+          "319": "n",
+          "320": "g",
+          "321": "e",
+          "322": ",",
+          "323": " ",
+          "324": "x",
+          "325": "l",
+          "326": "u",
+          "327": "_",
+          "328": "c",
+          "329": "h",
+          "330": "a",
+          "331": "n",
+          "332": "g",
+          "333": "e",
+          "334": ",",
+          "335": " ",
+          "336": "x",
+          "337": "l",
+          "338": "r",
+          "339": "e",
+          "340": "_",
+          "341": "c",
+          "342": "h",
+          "343": "a",
+          "344": "n",
+          "345": "g",
+          "346": "e",
+          "347": ",",
+          "348": " ",
+          "349": "x",
+          "350": "l",
+          "351": "p",
+          "352": "_",
+          "353": "c",
+          "354": "h",
+          "355": "a",
+          "356": "n",
+          "357": "g",
+          "358": "e",
+          "359": ",",
+          "360": " ",
+          "361": "x",
+          "362": "l",
+          "363": "c",
+          "364": "_",
+          "365": "c",
+          "366": "h",
+          "367": "a",
+          "368": "n",
+          "369": "g",
+          "370": "e",
+          "371": ",",
+          "372": " ",
+          "373": "g",
+          "374": "o",
+          "375": "l",
+          "376": "d",
+          "377": "_",
+          "378": "c",
+          "379": "h",
+          "380": "a",
+          "381": "n",
+          "382": "g",
+          "383": "e",
+          "384": ",",
+          "385": " ",
+          "386": "o",
+          "387": "i",
+          "388": "l",
+          "389": "_",
+          "390": "c",
+          "391": "h",
+          "392": "a",
+          "393": "n",
+          "394": "g",
+          "395": "e",
+          "396": ",",
+          "397": " ",
+          "398": "b",
+          "399": "t",
+          "400": "c",
+          "401": "_",
+          "402": "c",
+          "403": "h",
+          "404": "a",
+          "405": "n",
+          "406": "g",
+          "407": "e",
+          "408": ",",
+          "409": " ",
+          "410": "d",
+          "411": "x",
+          "412": "y",
+          "413": "_",
+          "414": "c",
+          "415": "h",
+          "416": "a",
+          "417": "n",
+          "418": "g",
+          "419": "e",
+          "420": ",",
+          "421": " ",
+          "422": "u",
+          "423": "n",
+          "424": "u",
+          "425": "s",
+          "426": "u",
+          "427": "a",
+          "428": "l",
+          "429": "_",
+          "430": "m",
+          "431": "o",
+          "432": "v",
+          "433": "e",
+          "434": "r",
+          "435": "s",
+          "436": ",",
+          "437": " ",
+          "438": "p",
+          "439": "m",
+          "440": "_",
+          "441": "v",
+          "442": "e",
+          "443": "r",
+          "444": "d",
+          "445": "i",
+          "446": "c",
+          "447": "t",
+          "448": ",",
+          "449": " ",
+          "450": "p",
+          "451": "m",
+          "452": "_",
+          "453": "f",
+          "454": "o",
+          "455": "c",
+          "456": "u",
+          "457": "s",
+          "458": "_",
+          "459": "s",
+          "460": "e",
+          "461": "c",
+          "462": "t",
+          "463": "o",
+          "464": "r",
+          "465": "s",
+          "466": ",",
+          "467": " ",
+          "468": "p",
+          "469": "m",
+          "470": "_",
+          "471": "r",
+          "472": "o",
+          "473": "t",
+          "474": "a",
+          "475": "t",
+          "476": "i",
+          "477": "o",
+          "478": "n",
+          "479": "_",
+          "480": "b",
+          "481": "i",
+          "482": "a",
+          "483": "s",
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Store EOD to PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1760,
+        368
+      ],
+      "id": "d55044ef-0d1e-4fdd-b961-81b8fca28fe9",
+      "credentials": {
+        "postgres": {
+          "id": "hGubp1Cj0GkU084W",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Count successful PostgreSQL insertions\nconst inputs = $input.all();\nconst pmSuccess = inputs.filter(item => item.json.table === 'premarket_data').length;\nconst eodSuccess = inputs.filter(item => item.json.table === 'eod_market_data').length;\n\nconst message = {\n  content: `:broom: **Weekly Housekeeping Complete**\\n\\n**Data Archived to PostgreSQL:**\\n* Pre-Market Records: ${pmSuccess}\\n* EOD Records: ${eodSuccess}\\n* Total: ${pmSuccess + eodSuccess}\\n\\n*Data preserved for historical analysis and AI queries*`\n};\n\nreturn [{ json: message }];"
+      },
+      "name": "Prepare Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        288
+      ],
+      "id": "e2f41d59-e83c-42f5-9f1b-d6bd8eef5559"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1479062205931720704/I-bWkhjT2V7th6SPxJu8YwRAigS6-4YFqHpDGxyLErMEPLa0LGtyRN63_oqYKywydDgo",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Send Discord Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2240,
+        288
+      ],
+      "id": "211de393-12a9-423e-8e25-750a215f5140"
+    },
+    {
+      "parameters": {},
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        800,
+        16
+      ],
+      "id": "1279ce6d-766d-476d-82bf-efb6f9db54e2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1441028378084769792/rajxn9_hCg3CeMx4TjNo5QAP8lh0_EBGUhgaByH4EStvfmro8GMrT9usoL9bpIQShbIa",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "=⚠️ **ERROR** in **{{ $json.workflow.name }}**\nNode: `{{ $json.execution.lastNodeExecuted }}`\nError: {{ $json.execution.error.message }}\nTime: {{ $now }}"
+            },
+            {
+              "name": "username",
+              "value": "Market Bot ⚠️ Error Alert"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Send Error to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1056,
+        32
+      ],
+      "id": "c1e2f5d0-78cb-4d4d-af31-ec42d1a6b4ca"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Monday 8AM Trigger": {
+      "main": [
+        [
+          {
+            "node": "Monday Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monday Check": {
+      "main": [
+        [
+          {
+            "node": "Read PreMarket Sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read EOD Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read PreMarket Sheet": {
+      "main": [
+        [
+          {
+            "node": "Transform PreMarket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read EOD Sheet": {
+      "main": [
+        [
+          {
+            "node": "Transform EOD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform PreMarket": {
+      "main": [
+        [
+          {
+            "node": "Store PreMarket to PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform EOD": {
+      "main": [
+        [
+          {
+            "node": "Store EOD to PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store PreMarket to PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "Prepare Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Notification": {
+      "main": [
+        [
+          {
+            "node": "Send Discord Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Error to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "7559ccde-827a-46f9-8a96-09ca63387114",
+  "meta": {
+    "instanceId": "9c23eca2d653c8acdcca310f46e54a77c95d745d2d10583ce1e408a8ca6940dc"
+  },
+  "id": "zR5hDpVVbniaRRnD",
+  "tags": []
+}

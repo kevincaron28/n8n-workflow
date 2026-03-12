@@ -1,0 +1,674 @@
+{
+  "name": "News Feed",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 15
+            }
+          ]
+        }
+      },
+      "name": "News Schedule AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        240
+      ],
+      "id": "aeea7844-c23d-47a8-9511-300157d073a1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 16,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "name": "News Schedule PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        400
+      ],
+      "id": "d9d5a7f9-9520-47e7-aa70-33d4db4af51c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Runs twice daily: 8:15am and 4:30pm\nconst categories = [\n  { category: \"general\",  label: \"Market\" },\n  { category: \"forex\",    label: \"Macro/FX\" },\n  { category: \"crypto\",   label: \"Crypto\" },\n  { category: \"merger\",   label: \"M&A\" },\n];\nreturn categories.map(c => ({ json: c }));"
+      },
+      "name": "News Categories",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        320
+      ],
+      "id": "3fd18d5e-569a-4753-a881-045dbcecb15b"
+    },
+    {
+      "parameters": {
+        "url": "=https://finnhub.io/api/v1/news?category={{$json.category}}&token=d6k6vlhr01qko8c3lvf0d6k6vlhr01qko8c3lvfg",
+        "options": {}
+      },
+      "name": "Fetch Finnhub News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        320
+      ],
+      "id": "e4fdda4a-57e8-45c3-8aa1-c1c8583a11b3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter, deduplicate, and rank articles by institutional signal score\n// Top MAX_ARTICLES selected by score, then re-sorted oldest-first for Discord display\nconst LOOKBACK_HRS  = 8;\nconst MAX_ARTICLES  = 6;\n\nconst SIGNAL_WEIGHTS = {\n  'fed': 5, 'federal reserve': 5, 'fomc': 5, 'rate': 4, 'cpi': 4,\n  'inflation': 4, 'gdp': 4, 'jobs': 4, 'nonfarm': 4, 'earnings': 3,\n  'tariff': 4, 'recession': 4, 'sec': 3, 'merger': 3, 'acquisition': 3,\n  'war': 3, 'sanctions': 3, 'oil': 2, 'opec': 2, 'dollar': 2,\n  'bitcoin': 1, 'btc': 1, 'ethereum': 1, 'eth': 1, 'crypto': 1,\n  'stablecoin': 1, 'coinbase': 0.5, 'binance': 0.5\n};\n\nconst CRYPTO_KW = ['crypto','bitcoin','ethereum','blockchain','nft','defi'];\nconst isCryptoOnly = h => {\n  const l = h.toLowerCase();\n  return CRYPTO_KW.some(kw => l.includes(kw)) &&\n    !h.match(/market|stock|index|fed|rate|earnings|sector/i);\n};\n\nconst now    = Date.now() / 1000;\nconst cutoff = now - (LOOKBACK_HRS * 3600);\nconst seen   = new Set();\n\nconst articles = $input.all()\n  .flatMap(i => Array.isArray(i.json) ? i.json : [i.json])\n  .filter(a => a && a.datetime > cutoff && a.headline && a.headline.length > 20)\n  .filter(a => !isCryptoOnly(a.headline))\n  .filter(a => { if (seen.has(a.id)) return false; seen.add(a.id); return true; });\n\nfunction score(a) {\n  const txt = (a.headline + ' ' + (a.summary || '')).toLowerCase();\n  let s = 0;\n  for (const [kw, w] of Object.entries(SIGNAL_WEIGHTS)) if (txt.includes(kw)) s += w;\n  return s;\n}\n\n// 1) Rank by signal score to pick the best MAX_ARTICLES\n// 2) Re-sort those selected articles oldest-first for chronological Discord display\nconst sorted = articles\n  .map(a => ({ ...a, _score: score(a) }))\n  .sort((a, b) => b._score - a._score || b.datetime - a.datetime)\n  .slice(0, MAX_ARTICLES)\n  .sort((a, b) => a.datetime - b.datetime);  // oldest-first for display\n\nreturn sorted.map(a => ({ json: a }));"
+      },
+      "name": "Filter & Rank News",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        320
+      ],
+      "id": "9e37b508-a2e8-47e4-82d0-6c1ac32df5f9"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a financial news analyst for active traders. In ONE concise sentence (max 25 words), explain the market significance of this headline. Be specific about which assets, sectors or rates are affected and why traders should care.\n\nHeadline: {{ $json.headline }}\nContext: {{ $json.summary }}"
+      },
+      "name": "Summarize Article",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        896,
+        320
+      ],
+      "id": "9317f513-226b-4df9-be77-ac8f5f5b4d90"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "name": "Groq Model (News)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        896,
+        480
+      ],
+      "id": "f9132d9d-1844-446f-b0ba-fa04df9f1110",
+      "credentials": {
+        "groqApi": {
+          "id": "9ac0YQMSX8bcOoGi",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Institutional Discord formatting\n// Articles are already sorted oldest-first by Filter & Rank News\n// Format: bold headline, backtick timestamp, source, blockquote AI summary, plain URL\nconst TIMEZONE = 'America/New_York';\nconst MAX      = 1950;\n\nconst originals = $('Filter & Rank News').all().map(i => i.json);\nconst aiTexts   = $input.all().map(i => (i.json.text || '').trim());\n\nif (originals.length === 0) {\n  return [{ json: { message: '\\u{1F4F0} No significant financial news in the last 8 hours.' } }];\n}\n\nconst now     = new Date();\nconst today   = now.toLocaleDateString('en-US', {\n  weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: TIMEZONE\n});\nconst runTime = now.toLocaleTimeString('en-US', {\n  hour: '2-digit', minute: '2-digit', hour12: true, timeZone: TIMEZONE\n});\nconst hour = parseInt(now.toLocaleString('en-US', {\n  hour: 'numeric', hour12: false, timeZone: TIMEZONE\n}));\nconst sessionLabel = hour >= 14 ? 'MARKET CLOSE  |  NEWS BRIEFING' : 'MARKET OPEN  |  NEWS BRIEFING';\n\n// Discord-safe divider (30 chars)\nconst divider = '\\u2550'.repeat(30);\nconst header  = `**${divider}**\\n**\\u{1F4F0}  ${sessionLabel}**\\n_${today}  \\u2022  ${runTime} ET_\\n**${divider}**`;\n\nconst formatArticle = (a, aiSummary, idx) => {\n  const time   = new Date(a.datetime * 1000).toLocaleTimeString('en-US', {\n    hour: '2-digit', minute: '2-digit', hour12: true, timeZone: TIMEZONE\n  });\n  const source = a.source || '';\n  const url    = a.url    || '';\n\n  // Institutional block:\n  // Bold numbered headline\n  // Backtick timestamp + bullet + source (italic)\n  // Blockquote AI analysis\n  // Plain URL on own line\n  let block = `\\n**${idx}. ${a.headline}**\\n`;\n  block    += `\\`${time} ET\\`  \\u2022  _${source}_\\n`;\n  if (aiSummary) block += `> \\u{1F4CA} ${aiSummary}\\n`;\n  if (url)       block += `[\\u2197 Read Article](${url})`;\n  return block;\n};\n\n// Smart chunking — never exceed MAX chars per message\nconst messages = [];\nlet chunk = header;\n\noriginals.forEach((a, i) => {\n  const article   = formatArticle(a, aiTexts[i] || '', i + 1);\n  const candidate = chunk + '\\n' + article;\n  if (candidate.length > MAX && chunk !== header) {\n    messages.push(chunk);\n    chunk = header + '\\n' + article;\n  } else {\n    chunk = candidate;\n  }\n});\nif (chunk !== header) messages.push(chunk);\n\nreturn messages.map(msg => ({ json: { message: msg } }));"
+      },
+      "name": "Format & Chunk for Discord",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        320
+      ],
+      "id": "860b0845-c76c-4085-8667-955d920038f0"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1479061833305296906/LNIIPsCt6j5N9OzQrYlL1FVlcMsp9SGTH8W7lUYo_pdnCBs7sZhYnI4TbM2UhTvO_igu",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "username",
+              "value": "Market Bot 📰 News"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "News to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1344,
+        320
+      ],
+      "id": "4096e096-01ec-405f-ae51-9f019bef50c3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pairs AI summaries with original articles for storage\n// Runs in the Discord chain (twice daily) — the only time AI summaries exist\n// 15-min logging chain does NOT include ai_summary, so upserts here are never overwritten\nconst TIMEZONE = 'America/New_York';\nconst originals = $('Filter & Rank News').all().map(i => i.json);\nconst aiTexts   = $input.all().map(i => (i.json.text || '').trim());\n\nif (originals.length === 0) return [];\n\nconst TOPICS = [\n  { tag: 'Fed/Rates',    re: /\\b(fed|federal reserve|fomc|interest rate|rate hike|rate cut|jerome powell|inflation|cpi|pce|bls|jobs report|nonfarm|unemployment)\\b/i },\n  { tag: 'Earnings',     re: /\\b(earnings|revenue|profit|eps|guidance|quarterly results|beats|misses|q[1-4] 20\\d\\d)\\b/i },\n  { tag: 'Energy',       re: /\\b(oil|crude|wti|brent|opec|natural gas|lng|energy|gasoline|petroleum)\\b/i },\n  { tag: 'Geopolitical', re: /\\b(war|sanction|tariff|trade war|military|attack|invasion|drone|nato|china|russia|iran|north korea|taiwan|ukraine|middle east|israel|conflict)\\b/i },\n  { tag: 'Crypto',       re: /\\b(bitcoin|btc|ethereum|eth|crypto|blockchain|defi|altcoin|stablecoin|coinbase|binance|solana|xrp)\\b/i },\n  { tag: 'FX/Macro',     re: /\\b(dollar|euro|yen|pound|cny|yuan|fx|forex|currency|gdp|recession|ecb|boe|boj|imf|world bank)\\b/i },\n  { tag: 'M&A',          re: /\\b(merger|acquisition|takeover|buyout|deal|acquire|acquired|purchase agreement|private equity)\\b/i },\n  { tag: 'Tech',         re: /\\b(ai|artificial intelligence|microsoft|google|apple|amazon|nvidia|meta|openai|semiconductor|chip|ipo|startup)\\b/i },\n  { tag: 'Markets',      re: /\\b(s&p|nasdaq|dow|stock|rally|selloff|sell.off|correction|bull|bear|equity|shares|index)\\b/i },\n];\nfunction getTopic(h) {\n  for (const t of TOPICS) if (t.re.test(h || '')) return t.tag;\n  return 'General';\n}\nfunction cleanSummary(raw) {\n  if (!raw) return '';\n  return raw.replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&')\n    .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'\"').replace(/&#39;/g,\"'\")\n    .replace(/\\s+/g,' ').trim().substring(0, 300);\n}\n\nreturn originals.map((a, idx) => {\n  const dt      = new Date(a.datetime * 1000);\n  const dateStr = dt.toLocaleDateString('en-US', { year:'numeric', month:'2-digit', day:'2-digit', timeZone: TIMEZONE });\n  const timeStr = dt.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:true, timeZone: TIMEZONE });\n  const localISO = dt.toLocaleString('sv-SE', { timeZone: TIMEZONE }).replace(' ','T');\n  return { json: {\n    timestamp:  localISO,\n    date:       dateStr,\n    time:       timeStr,\n    topic:      getTopic(a.headline),\n    headline:   a.headline   || '',\n    summary:    cleanSummary(a.summary),\n    ai_summary: aiTexts[idx] || '',\n    source:     a.source     || '',\n    url:        a.url        || '',\n    article_id: String(a.id  || ''),\n  }};\n});"
+      },
+      "name": "Log AI Summaries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        160
+      ],
+      "id": "8f74a91c-d18d-4565-9f29-71fa2d96b462"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 405068271,
+          "mode": "list",
+          "cachedResultName": "News",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs/edit#gid=405068271"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "article_id"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Append AI to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1344,
+        80
+      ],
+      "id": "bace69d4-3f49-48aa-a34d-27392ec1fcc6",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "news_log",
+          "mode": "list",
+          "cachedResultName": "news_log"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "article_id"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Store AI to PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1344,
+        240
+      ],
+      "id": "1ce68205-e5f3-464f-aee1-20b2fa3fa045",
+      "credentials": {
+        "postgres": {
+          "id": "hGubp1Cj0GkU084W",
+          "name": "Postgres account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "name": "Log Schedule (15min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        640
+      ],
+      "id": "bd8be0d5-1034-4b3d-99bb-74cb5edaee51"
+    },
+    {
+      "parameters": {
+        "jsCode": "const categories = [\n  { category: 'general', label: 'Market' },\n  { category: 'forex',   label: 'Macro/FX' },\n  { category: 'crypto',  label: 'Crypto' },\n  { category: 'merger',  label: 'M&A' },\n];\nreturn categories.map(c => ({ json: c }));"
+      },
+      "name": "Log Categories",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        640
+      ],
+      "id": "40597d5d-95d0-47b4-a211-000521392dfb"
+    },
+    {
+      "parameters": {
+        "url": "=https://finnhub.io/api/v1/news?category={{$json.category}}&token=d6k6vlhr01qko8c3lvf0d6k6vlhr01qko8c3lvfg",
+        "options": {}
+      },
+      "name": "Fetch Finnhub News (Log)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        640
+      ],
+      "id": "48d77ea1-cd09-4e96-8f14-69eb415bb0d3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\nconst catItems = $('Log Categories').all();\nconst results  = [];\n\nconst TOPICS = [\n  { tag: 'Fed/Rates',    re: /\\b(fed|federal reserve|fomc|interest rate|rate hike|rate cut|jerome powell|inflation|cpi|pce|bls|jobs report|nonfarm|unemployment)\\b/i },\n  { tag: 'Earnings',     re: /\\b(earnings|revenue|profit|eps|guidance|quarterly results|beats|misses|q[1-4] 20\\d\\d)\\b/i },\n  { tag: 'Energy',       re: /\\b(oil|crude|wti|brent|opec|natural gas|lng|energy|gasoline|petroleum)\\b/i },\n  { tag: 'Geopolitical', re: /\\b(war|sanction|tariff|trade war|military|attack|invasion|drone|nato|china|russia|iran|north korea|taiwan|ukraine|middle east|israel|conflict)\\b/i },\n  { tag: 'Crypto',       re: /\\b(bitcoin|btc|ethereum|eth|crypto|blockchain|defi|altcoin|stablecoin|coinbase|binance|solana|xrp)\\b/i },\n  { tag: 'FX/Macro',     re: /\\b(dollar|euro|yen|pound|cny|yuan|fx|forex|currency|gdp|recession|ecb|boe|boj|imf|world bank)\\b/i },\n  { tag: 'M&A',          re: /\\b(merger|acquisition|takeover|buyout|deal|acquire|acquired|purchase agreement|private equity)\\b/i },\n  { tag: 'Tech',         re: /\\b(ai|artificial intelligence|microsoft|google|apple|amazon|nvidia|meta|openai|semiconductor|chip|ipo|startup)\\b/i },\n  { tag: 'Markets',      re: /\\b(s&p|nasdaq|dow|stock|rally|selloff|sell.off|correction|bull|bear|equity|shares|index)\\b/i },\n];\n\nfunction getTopic(headline, baseCategory) {\n  for (const t of TOPICS) if (t.re.test(headline || '')) return t.tag;\n  const fallbacks = { general: 'Markets', forex: 'FX/Macro', crypto: 'Crypto', merger: 'M&A' };\n  return fallbacks[baseCategory] || 'General';\n}\n\nfor (let i = 0; i < allItems.length; i++) {\n  const item     = allItems[i];\n  const articles = Array.isArray(item.json) ? item.json : [item.json];\n  const pairedIdx = (item.pairedItem && typeof item.pairedItem === 'object') ? item.pairedItem.item : i;\n  const catItem  = catItems[pairedIdx] || catItems[i % catItems.length];\n  const category = catItem ? catItem.json.category : 'general';\n  for (const a of articles) {\n    if (!a || !a.headline) continue;\n    results.push({ json: { ...a, category, topic: getTopic(a.headline, category) } });\n  }\n}\nreturn results;"
+      },
+      "name": "Tag Category (Log)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        640
+      ],
+      "id": "0bfa439a-eb11-45c6-9fc7-d51765ec60cb"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log raw articles to Google Sheets + PostgreSQL every 15 min\n// ai_summary intentionally excluded — only the twice-daily Discord chain writes that field\n// so upserts here never overwrite AI summaries already stored by the Discord chain\nconst TIMEZONE     = 'America/New_York';\nconst LOOKBACK_HRS = 2;\nconst now    = Date.now() / 1000;\nconst cutoff = now - (LOOKBACK_HRS * 3600);\nconst seen   = new Set();\n\nconst articles = $input.all()\n  .map(i => i.json)\n  .filter(a => a && a.datetime && a.datetime > cutoff && a.headline && a.headline.length > 20)\n  .filter(a => { const k = String(a.id || a.headline); if (seen.has(k)) return false; seen.add(k); return true; })\n  .sort((a, b) => b.datetime - a.datetime)\n  .slice(0, 5);\n\nif (articles.length === 0) return [];\n\nfunction cleanSummary(raw) {\n  if (!raw) return '';\n  return raw.replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&')\n    .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'\"').replace(/&#39;/g,\"'\")\n    .replace(/\\s+/g,' ').trim().substring(0, 300);\n}\n\nreturn articles.map(a => {\n  const dt = new Date(a.datetime * 1000);\n  const dateStr = dt.toLocaleDateString('en-US', { year:'numeric', month:'2-digit', day:'2-digit', timeZone: TIMEZONE });\n  const timeStr = dt.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:true, timeZone: TIMEZONE });\n  const localISO = dt.toLocaleString('sv-SE', { timeZone: TIMEZONE }).replace(' ','T');\n  return { json: {\n    timestamp:  localISO,\n    date:       dateStr,\n    time:       timeStr,\n    category:   a.category   || '',\n    topic:      a.topic      || '',\n    headline:   a.headline   || '',\n    summary:    cleanSummary(a.summary),\n    source:     a.source     || '',\n    url:        a.url        || '',\n    article_id: String(a.id  || ''),\n  }};\n});"
+      },
+      "name": "Process for Sheets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        640
+      ],
+      "id": "c5e69fbb-4fef-4ef8-9054-cf877e0032f4"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 405068271,
+          "mode": "list",
+          "cachedResultName": "News",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs/edit#gid=405068271"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "article_id"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Append to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1120,
+        560
+      ],
+      "id": "f4a194ff-548d-4227-bec0-1e36b96cce1e",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prep raw articles for PostgreSQL upsert (no ai_summary — Discord chain handles that)\nreturn $input.all().map(item => {\n  const a = item.json;\n  return { json: {\n    article_id: a.article_id || '',\n    timestamp:  a.timestamp  || new Date().toISOString(),\n    date:       a.date       || null,\n    time:       a.time       || null,\n    category:   a.category   || null,\n    topic:      a.topic      || null,\n    headline:   a.headline   || null,\n    summary:    a.summary    || null,\n    source:     a.source     || null,\n    url:        a.url        || null,\n  }};\n});"
+      },
+      "name": "News PostgreSQL Prep",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        720
+      ],
+      "id": "9b5717b6-a95e-47af-b15f-887572947d77"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "news_log",
+          "mode": "list",
+          "cachedResultName": "news_log"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "article_id"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Store News to PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1344,
+        720
+      ],
+      "id": "3785d26a-5af5-4642-ad3f-b2a0c59b648e",
+      "credentials": {
+        "postgres": {
+          "id": "hGubp1Cj0GkU084W",
+          "name": "Postgres account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {},
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7769ac12-a7d8-430b-b27d-d87330afa467"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1441028378084769792/rajxn9_hCg3CeMx4TjNo5QAP8lh0_EBGUhgaByH4EStvfmro8GMrT9usoL9bpIQShbIa",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "=⚠️ **ERROR** in **{{ $json.workflow.name }}**\nNode: `{{ $json.execution.lastNodeExecuted }}`\nError: {{ $json.execution.error.message }}\nTime: {{ $now }}"
+            },
+            {
+              "name": "username",
+              "value": "Market Bot ⚠️ Error Alert"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Send Error to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        0
+      ],
+      "id": "178df9cc-0f5b-40ec-a7b5-f9b2234d931a"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "News Schedule AM": {
+      "main": [
+        [
+          {
+            "node": "News Categories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "News Schedule PM": {
+      "main": [
+        [
+          {
+            "node": "News Categories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "News Categories": {
+      "main": [
+        [
+          {
+            "node": "Fetch Finnhub News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Finnhub News": {
+      "main": [
+        [
+          {
+            "node": "Filter & Rank News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter & Rank News": {
+      "main": [
+        [
+          {
+            "node": "Summarize Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Article": {
+      "main": [
+        [
+          {
+            "node": "Format & Chunk for Discord",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log AI Summaries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format & Chunk for Discord": {
+      "main": [
+        [
+          {
+            "node": "News to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log AI Summaries": {
+      "main": [
+        [
+          {
+            "node": "Append AI to Google Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Store AI to PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Model (News)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Summarize Article",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Schedule (15min)": {
+      "main": [
+        [
+          {
+            "node": "Log Categories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Categories": {
+      "main": [
+        [
+          {
+            "node": "Fetch Finnhub News (Log)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Finnhub News (Log)": {
+      "main": [
+        [
+          {
+            "node": "Tag Category (Log)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Category (Log)": {
+      "main": [
+        [
+          {
+            "node": "Process for Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process for Sheets": {
+      "main": [
+        [
+          {
+            "node": "Append to Google Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "News PostgreSQL Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "News PostgreSQL Prep": {
+      "main": [
+        [
+          {
+            "node": "Store News to PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Error to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "670c112c-eb15-4be5-a6af-ed1ecaa310b9",
+  "meta": {
+    "instanceId": "9c23eca2d653c8acdcca310f46e54a77c95d745d2d10583ce1e408a8ca6940dc"
+  },
+  "id": "xOFAezpZyulvLhNP",
+  "tags": []
+}

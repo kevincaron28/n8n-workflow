@@ -1,0 +1,822 @@
+{
+  "name": "Economic Calendar",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "name": "Daily 6AM Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -720,
+        192
+      ],
+      "id": "50513d0c-8a2b-47d1-8bbd-5209f34e2de4"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "name": "Sunday 7AM Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -720,
+        592
+      ],
+      "id": "b4bc6da4-e408-487b-ae0e-0c3858d08d0b"
+    },
+    {
+      "parameters": {
+        "url": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "name": "Fetch FF Calendar (Daily)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -480,
+        192
+      ],
+      "id": "c6080a25-17f2-4943-83bf-c2dc1d863585"
+    },
+    {
+      "parameters": {
+        "url": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "name": "Fetch FF Calendar (Weekly)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -480,
+        592
+      ],
+      "id": "ed13ea6f-a86d-447c-a638-ea3c92162b2d"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allEvents = Array.isArray($json)\n  ? $json\n  : (Array.isArray($input.all().map(i => i.json).flat())\n      ? $input.all().map(i => i.json).flat()\n      : []);\n\n// DST-aware ET offset\nconst now = new Date();\nconst year = now.getUTCFullYear();\nconst dstStart = new Date(Date.UTC(year, 2, 8 + (7 - new Date(Date.UTC(year, 2, 8)).getUTCDay()) % 7, 7));\nconst dstEnd   = new Date(Date.UTC(year, 10, 1 + (7 - new Date(Date.UTC(year, 10, 1)).getUTCDay()) % 7, 6));\nconst etOffsetHours = (now >= dstStart && now < dstEnd) ? -4 : -5;\nconst etNow = new Date(now.getTime() + (etOffsetHours * 60 * 60 * 1000));\nconst pad = n => String(n).padStart(2, '0');\nconst todayET = etNow.getUTCFullYear() + '-' + pad(etNow.getUTCMonth()+1) + '-' + pad(etNow.getUTCDate());\n\n// Filter: USD only, today only, any impact\nconst filtered = allEvents.filter(e => {\n  if (!e || !e.title) return false;\n  if (e.country !== 'USD') return false;\n  const impact = (e.impact || '').toLowerCase();\n  if (impact !== 'high' && impact !== 'medium' && impact !== 'low') return false;\n  const eventDate = (e.date || '').substring(0, 10);\n  return eventDate === todayET;\n}).sort((a, b) => (a.date || '').localeCompare(b.date || ''));\n\nconst dateLabel = etNow.toLocaleDateString('en-US', {\n  weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',\n  timeZone: 'UTC'\n});\nconst dateStr = todayET;\nconst tzLabel = etOffsetHours === -4 ? 'EDT' : 'EST';\n\nconst impactEmoji = i => ({ high: '\\uD83D\\uDD34', medium: '\\uD83D\\uDFE1', low: '\\u26AA' })[(i||'').toLowerCase()] || '\\u26AA';\n\nconst fmtTime = rawDate => {\n  try {\n    const t = (rawDate || '').split('T')[1];\n    if (!t) return 'All Day';\n    const parts = t.replace(/[+-]\\d{4}$/, '').split(':');\n    let h = parseInt(parts[0]);\n    const m = parts[1];\n    const ampm = h >= 12 ? 'PM' : 'AM';\n    if (h > 12) h -= 12;\n    if (h === 0) h = 12;\n    return h + ':' + m + ' ' + ampm + ' ' + tzLabel;\n  } catch(e) { return 'TBD'; }\n};\n\nconst fmtEvent = e => {\n  const emoji = impactEmoji(e.impact);\n  const time  = fmtTime(e.date);\n  const fore  = e.forecast ? '  Fcst: `' + e.forecast + '`' : '';\n  const prev  = e.previous ? '  \\u2502  Prev: `' + e.previous + '`' : '';\n  const act   = e.actual   ? '  \\u2502  **\\u2705 Act: `' + e.actual + '`**' : '';\n  const meta  = (fore || prev || act) ? '\\n> ' + (fore + prev + act).trim() : '';\n  return emoji + ' **' + e.title + '**  \\u00B7  ' + time + meta;\n};\n\nif (!filtered.length) {\n  const msg = [\n    '**\\uD83D\\uDCCA ECONOMIC CALENDAR \\u2014 TODAY**',\n    '**\\uD83D\\uDCC5 ' + dateLabel + '**',\n    '\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501',\n    '',\n    '_No major USD events scheduled today._',\n    '_Source: Forex Factory_'\n  ].join('\\n');\n  return [{ json: { message: msg, mode: 'daily', date: dateStr, eventCount: 0, eventsForSheets: [] } }];\n}\n\nconst high   = filtered.filter(e => (e.impact||'').toLowerCase() === 'high');\nconst medium = filtered.filter(e => (e.impact||'').toLowerCase() === 'medium');\nconst low    = filtered.filter(e => (e.impact||'').toLowerCase() === 'low');\n\nconst lines = [\n  '**\\uD83D\\uDCCA ECONOMIC CALENDAR \\u2014 TODAY**',\n  '**\\uD83D\\uDCC5 ' + dateLabel + '**',\n  '\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501',\n  ''\n];\n\nif (high.length)   { lines.push('**\\uD83D\\uDD34 HIGH IMPACT**');   lines.push('\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500'); high.forEach(e   => lines.push(fmtEvent(e))); lines.push(''); }\nif (medium.length) { lines.push('**\\uD83D\\uDFE1 MEDIUM IMPACT**'); lines.push('\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500'); medium.forEach(e => lines.push(fmtEvent(e))); lines.push(''); }\nif (low.length)    { lines.push('**\\u26AA LOW IMPACT**');          lines.push('\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500'); low.forEach(e    => lines.push(fmtEvent(e))); lines.push(''); }\n\nlines.push('_Source: Forex Factory \\u2502 Times in ' + tzLabel + '_');\n\nconst eventsForSheets = filtered.map(e => ({\n  date: (e.date || '').substring(0, 10),\n  event: e.title || '',\n  time_et: fmtTime(e.date),\n  impact: e.impact || '',\n  currency: e.country || 'USD',\n  forecast: e.forecast || '',\n  previous: e.previous || '',\n  actual: e.actual || '',\n  mode: 'daily'\n}));\n\nreturn [{ json: { message: lines.join('\\n'), mode: 'daily', date: dateStr, eventCount: filtered.length, eventsForSheets } }];"
+      },
+      "name": "Format Daily Discord",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        192
+      ],
+      "id": "a2c13137-4fea-44d4-9fbf-df3abedf6e30"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allEvents = Array.isArray($json)\n  ? $json\n  : (Array.isArray($input.all().map(i => i.json).flat())\n      ? $input.all().map(i => i.json).flat()\n      : []);\n\n// Filter: USD only, High + Medium impact\nconst filtered = allEvents.filter(e => {\n  if (!e || !e.title) return false;\n  if (e.country !== 'USD') return false;\n  const impact = (e.impact || '').toLowerCase();\n  return impact === 'high' || impact === 'medium';\n}).sort((a, b) => (a.date || '').localeCompare(b.date || ''));\n\nconst now = new Date();\nconst year = now.getUTCFullYear();\nconst dstStart = new Date(Date.UTC(year, 2, 8 + (7 - new Date(Date.UTC(year, 2, 8)).getUTCDay()) % 7, 7));\nconst dstEnd   = new Date(Date.UTC(year, 10, 1 + (7 - new Date(Date.UTC(year, 10, 1)).getUTCDay()) % 7, 6));\nconst etOffsetHours = (now >= dstStart && now < dstEnd) ? -4 : -5;\nconst etNow = new Date(now.getTime() + (etOffsetHours * 60 * 60 * 1000));\nconst tzLabel = etOffsetHours === -4 ? 'EDT' : 'EST';\n\nconst pad = n => String(n).padStart(2, '0');\nconst fmt = d => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });\nconst day = etNow.getUTCDay();\nconst diffToMon = (day === 0) ? 0 : (1 - day);\nconst monday = new Date(etNow); monday.setUTCDate(etNow.getUTCDate() + diffToMon);\nconst sunday = new Date(monday); sunday.setUTCDate(monday.getUTCDate() + 6);\nconst weekLabel = fmt(monday) + ' \\u2013 ' + fmt(sunday) + ', ' + etNow.getUTCFullYear();\nconst dateStr = etNow.getUTCFullYear() + '-' + pad(etNow.getUTCMonth()+1) + '-' + pad(etNow.getUTCDate());\n\nconst fmtTime = rawDate => {\n  try {\n    const t = (rawDate || '').split('T')[1];\n    if (!t) return 'All Day';\n    const parts = t.replace(/[+-]\\d{4}$/, '').split(':');\n    let h = parseInt(parts[0]);\n    const m = parts[1];\n    const ampm = h >= 12 ? 'PM' : 'AM';\n    if (h > 12) h -= 12;\n    if (h === 0) h = 12;\n    return h + ':' + m + ' ' + ampm + ' ' + tzLabel;\n  } catch(e) { return 'TBD'; }\n};\n\nif (!filtered.length) {\n  const msg = [\n    '**\\uD83D\\uDCCA ECONOMIC CALENDAR \\u2014 WEEK AHEAD**',\n    '**\\uD83D\\uDCC5 Week of ' + weekLabel + '**',\n    '\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501',\n    '',\n    '_No major USD events this week._',\n    '_Source: Forex Factory_'\n  ].join('\\n');\n  return [{ json: { message: msg, mode: 'weekly', date: dateStr, eventCount: 0, eventsForSheets: [] } }];\n}\n\n// Group by calendar date\nconst byDay = {};\nfiltered.forEach(e => {\n  const d = (e.date || '').substring(0, 10);\n  if (!byDay[d]) byDay[d] = [];\n  byDay[d].push(e);\n});\n\nconst impactEmoji = { high: '\\uD83D\\uDD34', medium: '\\uD83D\\uDFE1' };\nconst dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];\n\nconst lines = [\n  '**\\uD83D\\uDCCA ECONOMIC CALENDAR \\u2014 WEEK AHEAD**',\n  '**\\uD83D\\uDCC5 Week of ' + weekLabel + '**',\n  '\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501',\n  ''\n];\n\nObject.keys(byDay).sort().forEach(dateKey => {\n  const d = new Date(dateKey + 'T12:00:00Z');\n  const label = dayNames[d.getUTCDay()] + '  ' + (d.getUTCMonth()+1) + '/' + d.getUTCDate();\n  lines.push('**\\uD83D\\uDCCC ' + label + '**');\n  lines.push('\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500');\n  byDay[dateKey].forEach(e => {\n    const emoji = impactEmoji[(e.impact||'').toLowerCase()] || '\\u26AA';\n    const time  = fmtTime(e.date);\n    const fore  = e.forecast ? '  Fcst: `' + e.forecast + '`' : '';\n    const prev  = e.previous ? '  \\u2502  Prev: `' + e.previous + '`' : '';\n    const meta  = (fore || prev) ? '\\n> ' + (fore + prev).trim() : '';\n    lines.push(emoji + ' **' + e.title + '**  \\u00B7  ' + time + meta);\n  });\n  lines.push('');\n});\n\nlines.push('\\uD83D\\uDD34 High Impact  \\u2502  \\uD83D\\uDFE1 Medium Impact');\nlines.push('_Source: Forex Factory \\u2502 Times in ' + tzLabel + '_');\n\nconst eventsForSheets = filtered.map(e => ({\n  date: (e.date || '').substring(0, 10),\n  event: e.title || '',\n  time_et: fmtTime(e.date),\n  impact: e.impact || '',\n  currency: e.country || 'USD',\n  forecast: e.forecast || '',\n  previous: e.previous || '',\n  actual: '',\n  mode: 'weekly_preview'\n}));\n\nreturn [{ json: { message: lines.join('\\n'), mode: 'weekly', date: dateStr, eventCount: filtered.length, eventsForSheets } }];"
+      },
+      "name": "Format Weekly Discord",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        592
+      ],
+      "id": "3ac6975e-1fde-4ea2-be35-a2af63439537"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1479062039925358674/aeOOh54D73fp-ww3iCqA0lTk-Mj0Puv7V-_VWGAuSgJLj7JOGWW1Bkp50CSymyxmJv5d",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "username",
+              "value": "Market Bot 📆 Economic Calendar"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Daily to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        0,
+        192
+      ],
+      "id": "2df1b13e-a739-404d-92e4-5d4d989137ca"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1479062039925358674/aeOOh54D73fp-ww3iCqA0lTk-Mj0Puv7V-_VWGAuSgJLj7JOGWW1Bkp50CSymyxmJv5d",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "username",
+              "value": "Market Bot 📆 Economic Calendar"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Weekly to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        0,
+        592
+      ],
+      "id": "2ae2ed0b-910c-490c-b29f-1b176f3c1b5c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.all()[0].json;\nconst rows = input.eventsForSheets || [];\nif (!rows.length) return [{ json: { skip: true } }];\nreturn rows.map(r => ({ json: r }));"
+      },
+      "name": "Expand Daily Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "61b7ecfc-99aa-449b-b366-6650161dff2f"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.all()[0].json;\nconst rows = input.eventsForSheets || [];\nif (!rows.length) return [{ json: { skip: true } }];\nreturn rows.map(r => ({ json: r }));"
+      },
+      "name": "Expand Weekly Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        432
+      ],
+      "id": "50d51e38-0bb3-45ff-a5a7-d7606fcfff0d"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1KVDQ-YkOU8SMeE8-wgFnUq4wE8soFeXrSFnRhmmmJxQ",
+          "mode": "list",
+          "cachedResultName": "Econ Calendar",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1KVDQ-YkOU8SMeE8-wgFnUq4wE8soFeXrSFnRhmmmJxQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Economic Calendar",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1KVDQ-YkOU8SMeE8-wgFnUq4wE8soFeXrSFnRhmmmJxQ/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Event": "={{ $json.event }}",
+            "Time (ET)": "={{ $json.time_et }}",
+            "Impact": "={{ $json.impact }}",
+            "Currency": "={{ $json.currency }}",
+            "Forecast": "={{ $json.forecast }}",
+            "Previous": "={{ $json.previous }}",
+            "Actual": "={{ $json.actual }}",
+            "Log Mode": "={{ $json.mode }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Event",
+              "displayName": "Event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Time (ET)",
+              "displayName": "Time (ET)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Impact",
+              "displayName": "Impact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Forecast",
+              "displayName": "Forecast",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Previous",
+              "displayName": "Previous",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Actual",
+              "displayName": "Actual",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Log Mode",
+              "displayName": "Log Mode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Log Daily to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        0
+      ],
+      "id": "e85823c7-b5c9-4b48-9df5-36f38c833e16",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1KVDQ-YkOU8SMeE8-wgFnUq4wE8soFeXrSFnRhmmmJxQ",
+          "mode": "list",
+          "cachedResultName": "Econ Calendar",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1KVDQ-YkOU8SMeE8-wgFnUq4wE8soFeXrSFnRhmmmJxQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Economic Calendar",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1KVDQ-YkOU8SMeE8-wgFnUq4wE8soFeXrSFnRhmmmJxQ/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Event": "={{ $json.event }}",
+            "Time (ET)": "={{ $json.time_et }}",
+            "Impact": "={{ $json.impact }}",
+            "Currency": "={{ $json.currency }}",
+            "Forecast": "={{ $json.forecast }}",
+            "Previous": "={{ $json.previous }}",
+            "Actual": "={{ $json.actual }}",
+            "Log Mode": "={{ $json.mode }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Event",
+              "displayName": "Event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Time (ET)",
+              "displayName": "Time (ET)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Impact",
+              "displayName": "Impact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Forecast",
+              "displayName": "Forecast",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Previous",
+              "displayName": "Previous",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Actual",
+              "displayName": "Actual",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Log Mode",
+              "displayName": "Log Mode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Log Weekly to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        432
+      ],
+      "id": "9264ae65-659f-4a6f-a3f3-f4b2907ef453",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5bqbh5OQI6VVBscy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "economic_calendar",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.date }}",
+            "event": "={{ $json.event }}",
+            "time_et": "={{ $json.time_et }}",
+            "impact": "={{ $json.impact }}",
+            "currency": "={{ $json.currency }}",
+            "forecast": "={{ $json.forecast }}",
+            "previous": "={{ $json.previous }}",
+            "actual": "={{ $json.actual }}",
+            "mode": "={{ $json.mode }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "time_et",
+              "displayName": "time_et",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "impact",
+              "displayName": "impact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "currency",
+              "displayName": "currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "forecast",
+              "displayName": "forecast",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "previous",
+              "displayName": "previous",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "actual",
+              "displayName": "actual",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mode",
+              "displayName": "mode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "name": "Log Daily to Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        0
+      ],
+      "id": "369056d8-38af-42a8-bd48-a644d8b0d3c9",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "economic_calendar",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.date }}",
+            "event": "={{ $json.event }}",
+            "time_et": "={{ $json.time_et }}",
+            "impact": "={{ $json.impact }}",
+            "currency": "={{ $json.currency }}",
+            "forecast": "={{ $json.forecast }}",
+            "previous": "={{ $json.previous }}",
+            "actual": "={{ $json.actual }}",
+            "mode": "={{ $json.mode }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "time_et",
+              "displayName": "time_et",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "impact",
+              "displayName": "impact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "currency",
+              "displayName": "currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "forecast",
+              "displayName": "forecast",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "previous",
+              "displayName": "previous",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "actual",
+              "displayName": "actual",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mode",
+              "displayName": "mode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "name": "Log Weekly to Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        432
+      ],
+      "id": "3be4b2bf-b19d-4dc2-a1a5-1d8fb4bb0076",
+      "disabled": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily 6AM Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch FF Calendar (Daily)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sunday 7AM Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch FF Calendar (Weekly)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch FF Calendar (Daily)": {
+      "main": [
+        [
+          {
+            "node": "Format Daily Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch FF Calendar (Weekly)": {
+      "main": [
+        [
+          {
+            "node": "Format Weekly Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Daily Discord": {
+      "main": [
+        [
+          {
+            "node": "Daily to Discord",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Expand Daily Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Weekly Discord": {
+      "main": [
+        [
+          {
+            "node": "Weekly to Discord",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Expand Weekly Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Daily Rows": {
+      "main": [
+        [
+          {
+            "node": "Log Daily to Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Daily to Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Weekly Rows": {
+      "main": [
+        [
+          {
+            "node": "Log Weekly to Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Weekly to Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "f4be38b2-802d-462f-b326-33b3b264922c",
+  "meta": {
+    "instanceId": "9c23eca2d653c8acdcca310f46e54a77c95d745d2d10583ce1e408a8ca6940dc"
+  },
+  "id": "FyrHfTrrFPnTj1JQ",
+  "tags": []
+}
