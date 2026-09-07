@@ -28,8 +28,9 @@ lives in [`config.js`](config.js). That's the only file meant to be hand-edited 
 
 ## Status
 
-Phase 1 (shell, grid, clock, weather) is in place. Solunar, calendar, markets, and camera tiles land in
-later phases per the brief's build order — see `docs/project-brief.md` §9.
+Phase 1 (shell, grid, clock, weather) and Phase 2 (solunar/fishing tile) are in place. Calendar,
+markets, and camera tiles land in later phases per the brief's build order — see
+`docs/project-brief.md` §9.
 
 ## Deployment
 

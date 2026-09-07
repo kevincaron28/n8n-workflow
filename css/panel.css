@@ -171,8 +171,31 @@ body {
   gap: 32px;
 }
 
-/* an active solunar period is the one place amber appears on the whole panel */
-.solunar-active {
+#tile-solunar .moon-disc {
+  line-height: 0;
+}
+#tile-solunar .moon-phase-label {
+  color: var(--ink-mid);
+  font-size: var(--size-label);
+  margin-top: 8px;
+}
+#tile-solunar .next-period {
+  font-family: var(--font-readout);
+  font-size: 28px;
+  margin-top: 16px;
+  color: var(--ink-high);
+}
+#tile-solunar .day-rating {
+  font-size: 28px;
+  color: var(--ink-mid);
+  margin-top: 8px;
+  letter-spacing: 4px;
+}
+
+/* an active solunar period is the one place amber appears on the whole panel — needs to out-rank
+   #tile-solunar .next-period's own color rule above, not just tie on class-count */
+.solunar-active,
+#tile-solunar .next-period.solunar-active {
   color: var(--solunar);
 }
 

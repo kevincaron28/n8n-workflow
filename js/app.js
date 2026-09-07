@@ -1,6 +1,7 @@
 import { CONFIG } from "../config.js";
 import { initClock } from "./clock.js";
 import { initWeather } from "./weather.js";
+import { initSolunar } from "./solunar.js";
 
 function safeInit(name, fn) {
   try {
@@ -58,6 +59,7 @@ function setupDailyReload(config) {
 function main() {
   safeInit("clock", () => initClock(CONFIG, document.getElementById("tile-header")));
   safeInit("weather", () => initWeather(CONFIG, document.getElementById("tile-weather")));
+  safeInit("solunar", () => initSolunar(CONFIG, document.getElementById("tile-solunar")));
   safeInit("offline indicator", setupOfflineIndicator);
   safeInit("night mode", () => setupNightMode(CONFIG));
   safeInit("burn-in shift", setupBurnInShift);
