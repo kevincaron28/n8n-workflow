@@ -3,6 +3,7 @@ import { initClock } from "./clock.js";
 import { initWeather } from "./weather.js";
 import { initSolunar } from "./solunar.js";
 import { initMarkets } from "./markets.js";
+import { initCalendar } from "./calendar.js";
 
 function safeInit(name, fn) {
   try {
@@ -62,6 +63,7 @@ function main() {
   safeInit("weather", () => initWeather(CONFIG, document.getElementById("tile-weather")));
   safeInit("solunar", () => initSolunar(CONFIG, document.getElementById("tile-solunar")));
   safeInit("markets", () => initMarkets(CONFIG, document.getElementById("tile-markets")));
+  safeInit("calendar", () => initCalendar(CONFIG, document.getElementById("tile-calendar")));
   safeInit("offline indicator", setupOfflineIndicator);
   safeInit("night mode", () => setupNightMode(CONFIG));
   safeInit("burn-in shift", setupBurnInShift);

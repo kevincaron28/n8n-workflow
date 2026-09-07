@@ -26,7 +26,11 @@ export const CONFIG = {
     ],
   },
 
-  calendar: { mode: "api", calendarId: "", googleApiKey: "" }, // TODO: brief §11.4
+  calendar: {
+    mode: "embed", // "embed" = private iframe, your own Google login on the tablet (current choice)
+    calendarId: "", // your Google account email — the calendar to show. Leave blank to hide the tile.
+    googleApiKey: "", // only used if you ever switch mode to "api" (see docs/project-brief.md §5.3)
+  },
 
   camera: { enabled: false, feeds: [] }, // TODO: blocked on camera brand/model, brief §11.2
 

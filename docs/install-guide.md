@@ -114,13 +114,32 @@ weather every 15 minutes, and the moon/fishing info every 5 minutes, entirely on
   there's a manual **Reload Start URL** action in the settings/menu — or just wait, since the
   panel auto-reloads itself once a day at 3am anyway (`config.js` → `dailyReloadHour`).
 
-## What you don't need yet
+## Turning on calendar and markets
 
-You do **not** need any API keys, Google account, or Finnhub account to get weather and solunar
-running — those are the only two tiles built so far (Phases 1–2). Calendar, markets, and camera
-are later phases, and `config.js` already has empty placeholders for their keys so nothing breaks
-in the meantime. When you're ready for those, see `docs/project-brief.md` §11 for what's needed
-first.
+Weather and solunar work with zero setup. Calendar and markets are built, but each is waiting on
+one value only you can provide — until then, that tile just stays quietly empty rather than showing
+an error.
+
+**Calendar** — built as a private embed, so nothing needs to be made public:
+
+1. In `config.js`, set `calendar.calendarId` to your Google account's email address.
+2. On the tablet, sign into that same Google account in Fully Kiosk Browser (Settings → there's a
+   "manage Google account" / normal Chrome-engine sign-in flow — it's the same as signing into
+   Chrome on any Android device). The calendar tile only shows events while that sign-in holds.
+3. Push the `config.js` change to `main`; Cloudflare redeploys automatically.
+
+If it ends up looking too much like a plain Google Calendar widget bolted onto the panel (it will —
+that's the trade-off for keeping it private), the fallback is Path A in `docs/project-brief.md`
+§5.3: make a calendar public and switch `calendar.mode` to `"api"` for full styling control.
+
+**Markets** — paste your Finnhub key into `config.js` → `markets.finnhubKey`, push, done. It only
+calls the API 09:30–16:00 ET on weekdays; outside that window it just shows the last close.
+
+## Camera — not yet
+
+Camera hardware hasn't been bought yet, so there's nothing to configure — `config.js` →
+`camera.enabled` stays `false` until it is. See `docs/project-brief.md` §11.2 for what's needed
+once a camera's picked (brand/model decides whether snapshot polling is even possible).
 
 ## Changing settings later (location, units, etc.)
 

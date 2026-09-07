@@ -29,9 +29,15 @@ lives in [`config.js`](config.js). That's the only file meant to be hand-edited 
 
 ## Status
 
-Phase 1 (weather), Phase 2 (solunar/fishing), and Phase 4 (markets strip) are built. Markets needs
-a Finnhub key pasted into `config.js` before it'll show anything — see `config.js` →
-`markets.finnhubKey`. Calendar and camera are still pending; see `docs/project-brief.md` §9 and §11.
+Phases 1–4 (weather, solunar/fishing, calendar, markets) are built. Two of them are waiting on
+values only Kevin has:
+
+- `config.js` → `markets.finnhubKey` — paste the Finnhub key in; the strip stays quiet until then.
+- `config.js` → `calendar.calendarId` — your Google account email; the tile stays quiet until then.
+  Calendar is built as a private iframe embed (Path B in the brief), so nothing needs to be made
+  public — it just needs the tablet's browser to stay signed into that Google account.
+
+Camera is still pending on hardware; see `docs/project-brief.md` §9 and §11.
 
 ## Deployment
 
