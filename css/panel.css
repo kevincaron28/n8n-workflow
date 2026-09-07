@@ -1,0 +1,241 @@
+/* Maison Panel — design tokens + layout. See docs/project-brief.md §8 for the rationale
+   (almanac-instrument concept, why no card boxes, the amber-is-exclusive-to-solunar rule). */
+
+@font-face {
+  font-family: "Archivo";
+  src: url("../fonts/archivo-variable.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Public Sans";
+  src: url("../fonts/public-sans-variable.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  /* palette — brief §8 */
+  --ground: #0d1417;
+  --ground-raised: #141e22;
+  --ink-high: #f2f5f3;
+  --ink-mid: #8fa3a6;
+  --tide: #4fb3c9;
+  --solunar: #e8a33d; /* reserved exclusively for an active fishing period — nowhere else */
+  --up: #4fc08d;
+  --down: #e5615e;
+
+  /* type */
+  --font-readout: "Archivo", "Arial Narrow", sans-serif;
+  --font-label: "Public Sans", system-ui, sans-serif;
+  --size-hero: clamp(96px, 12vw, 180px);
+  --size-section: clamp(40px, 5vw, 64px);
+  --size-label: 20px;
+  --size-body: 18px; /* floor — nothing on this panel goes smaller */
+
+  /* motion */
+  --fade: 300ms;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden; /* no scrolling, ever — brief §8 */
+  background: var(--ground);
+  color: var(--ink-high);
+  font-family: var(--font-label);
+  font-size: var(--size-body);
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* burn-in mitigation: the whole layout drifts a few px on a slow cycle (app.js sets this) */
+#panel {
+  position: relative;
+  flex: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  padding: 32px 40px;
+  transition: transform 60s linear;
+}
+
+/* header: clock + date */
+#tile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+#tile-header .clock-time {
+  font-family: var(--font-readout);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--size-section);
+  color: var(--ink-high);
+}
+#tile-header .clock-date {
+  font-family: var(--font-label);
+  font-size: var(--size-label);
+  color: var(--ink-mid);
+}
+
+/* main: weather | calendar | solunar+markets */
+#tile-main {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 0.9fr;
+  gap: 40px;
+  min-height: 0;
+}
+
+#tile-main > section {
+  min-width: 0;
+  min-height: 0;
+}
+
+.section-label {
+  font-family: var(--font-label);
+  font-size: var(--size-label);
+  color: var(--ink-mid);
+  text-transform: none; /* sentence case throughout, no all-caps labels — brief §8 */
+  margin: 0 0 8px;
+}
+
+/* weather tile */
+#tile-weather {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+#tile-weather .hero-temp {
+  font-family: var(--font-readout);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--size-hero);
+  line-height: 1;
+  color: var(--ink-high);
+}
+#tile-weather .hero-sub {
+  font-family: var(--font-label);
+  color: var(--tide);
+  font-size: var(--size-label);
+}
+#tile-weather .hourly-strip {
+  display: flex;
+  gap: 16px;
+  overflow: hidden;
+  margin-top: 24px;
+}
+#tile-weather .hourly-strip .hour {
+  text-align: center;
+  color: var(--ink-mid);
+}
+#tile-weather .daily-rows {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#tile-weather .daily-rows .day-row {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink-mid);
+}
+#tile-weather .attribution {
+  margin-top: auto;
+  padding-top: 16px;
+  font-size: 14px;
+  color: var(--ink-mid);
+  opacity: 0.7;
+}
+
+/* calendar tile — phase 3 */
+#tile-calendar {
+  color: var(--ink-mid);
+}
+
+/* solunar + markets column — phase 2 / phase 4 */
+#tile-side {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* an active solunar period is the one place amber appears on the whole panel */
+.solunar-active {
+  color: var(--solunar);
+}
+
+.market-up {
+  color: var(--up);
+}
+.market-down {
+  color: var(--down);
+}
+
+/* footer: camera strip — phase 5 */
+#tile-cameras {
+  background: var(--ground-raised);
+  border-radius: 4px;
+  min-height: 0;
+  display: flex;
+  gap: 16px;
+  padding: 8px;
+}
+#tile-cameras[hidden] {
+  display: none;
+}
+
+/* staleness — cached last-good value rendered dimmed with a quiet timestamp, brief §6 */
+.is-stale {
+  opacity: 0.55;
+}
+.stale-note {
+  font-size: 14px;
+  color: var(--ink-mid);
+}
+
+/* offline indicator — one small persistent mark, never a per-tile error, brief §6 */
+#offline-indicator {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--down);
+  display: none;
+}
+#offline-indicator.is-visible {
+  display: block;
+}
+
+/* night mode — app.js toggles this class based on config.night */
+body.is-night #panel {
+  opacity: var(--night-opacity, 0.35);
+  filter: sepia(0.15);
+}
+
+/* number changes cross-fade; nothing else moves — brief §8 */
+.value-fade {
+  transition: opacity var(--fade) ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #panel {
+    transition: none;
+  }
+  .value-fade {
+    transition: none;
+  }
+}

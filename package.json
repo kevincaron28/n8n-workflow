@@ -1,0 +1,7 @@
+{
+  "name": "maison-panel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Wall-mounted tablet dashboard: clock, weather, solunar, calendar, and markets. Static site, no build step.",
+  "license": "UNLICENSED"
+}

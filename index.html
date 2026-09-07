@@ -1,0 +1,47 @@
+<title>Maison Panel</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<link rel="stylesheet" href="css/panel.css" />
+
+<div id="panel">
+  <header id="tile-header">
+    <span class="clock-time"></span>
+    <span class="clock-date"></span>
+  </header>
+
+  <main id="tile-main">
+    <section id="tile-weather">
+      <h2 class="section-label">Aujourd'hui</h2>
+      <div class="hero-temp value-fade"></div>
+      <div class="hero-sub value-fade"></div>
+      <div class="hourly-strip"></div>
+      <div class="daily-rows"></div>
+      <div class="stale-note"></div>
+      <div class="attribution">Weather data by Open-Meteo.com (CC BY 4.0)</div>
+    </section>
+
+    <section id="tile-calendar">
+      <h2 class="section-label">Calendrier</h2>
+      <!-- populated in phase 3 by js/calendar.js -->
+    </section>
+
+    <section id="tile-side">
+      <div id="tile-solunar">
+        <h2 class="section-label">Pêche</h2>
+        <!-- populated in phase 2 by js/solunar.js -->
+      </div>
+      <div id="tile-markets">
+        <h2 class="section-label">Marchés</h2>
+        <!-- populated in phase 4 by js/markets.js -->
+      </div>
+    </section>
+  </main>
+
+  <footer id="tile-cameras">
+    <!-- populated in phase 5 by js/camera.js -->
+  </footer>
+</div>
+
+<div id="offline-indicator"></div>
+
+<script type="module" src="js/app.js"></script>

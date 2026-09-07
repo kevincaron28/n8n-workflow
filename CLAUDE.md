@@ -2,72 +2,88 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Project overview
 
-This is an **n8n workflow automation suite** for financial market analysis and reporting. It consists of 6 JSON workflow definition files that are imported into an n8n instance — there is no traditional build system, package manager, or application code.
+**Maison Panel** is a wall-mounted Android tablet dashboard: clock, weather, fishing/solunar timing,
+household calendar, and a market-indices strip, in that priority order. Weather and fishing are the
+primary use; markets are a secondary strip.
 
-## Working with Workflows
+**The constraint that drives every decision:** no home server, no Docker, no backend. It is a static
+site — plain HTML/CSS/vanilla JS modules, no framework, no build step, no bundler — deployed to
+Cloudflare Pages. The tablet's browser calls every external API directly; there is no middleware layer.
+See `docs/project-brief.md` for the full brief this build follows (architecture rationale, tile specs,
+resilience requirements, design direction, and the phased build order).
 
-These `.json` files are n8n workflow definitions. To develop or deploy:
+There are no lint, build, or test commands. Changes are validated by opening `index.html` (a local
+static server is enough — see below) and, ultimately, by the deployed Pages URL on the actual tablet.
 
-- **Import a workflow:** In n8n UI → Workflows → Import from file → select the JSON file
-- **Export a workflow:** In n8n UI → open workflow → ⋮ menu → Download
-- **Edit workflows:** Either via the n8n UI (recommended for node wiring) or directly editing JSON
-- **Activate/deactivate:** Workflows with schedule triggers must be toggled active in n8n
+## Running locally
 
-There are no lint, build, or test commands — changes are validated by importing and running them in n8n.
+No build step, so any static file server works, e.g.:
+
+```
+npx serve .
+# or
+python3 -m http.server 8080
+```
+
+Opening `index.html` directly via `file://` does **not** work reliably — a `file://` origin breaks CORS
+and service workers, so always serve it over `http(s)`.
 
 ## Architecture
 
-Six workflows run on a daily/weekly schedule throughout the US trading day, pulling from financial APIs, storing data in Google Sheets, and publishing summaries to Discord.
-
-### Workflow Schedule & Purpose
-
-| Workflow | Schedule | Role |
-|---|---|---|
-| `Economic Calendar.json` | 6 AM daily, 7 AM Sunday | Fetches USD economic events from Forex Factory; stores to Sheets + Discord |
-| `Pre-Market Brief.json` | Pre-market (~8–9 AM ET) | Fetches pre-market data; identifies RISK-ON/OFF/MIXED sentiment; sector strength ranking |
-| `News Feed.json` | 8:15 AM and 4:30 PM ET | Fetches Finnhub news (general/forex/crypto/M&A); scores by institutional signal importance; LLM summary via Groq (Llama 3.3-70b) |
-| `EOD Recap.json` | 4:30 PM ET | Fetches 5-day price data for 31+ tickers from Yahoo Finance; calculates breadth, volume, sector rotation |
-| `Housekeeping.json` | Monday 8 AM | Reads weekly data from Sheets for aggregation cleanup |
-| `Weekly Recap.json` | Friday 5 PM ET | Aggregates full week of Pre-Market + EOD + Economic Calendar data; posts summary to Discord |
-
-### External Integrations
-
-- **Yahoo Finance** — EOD price data (public endpoint, no API key)
-- **Finnhub API** — News feed (API key embedded in `News Feed.json`)
-- **Forex Factory API** — Economic calendar data
-- **Google Sheets** — Persistent storage via n8n OAuth2 credentials
-  - `DailySnapshots` spreadsheet (`1jQH5MB_DElm367Mf7KWLKYT9oTbV4G6WbtT9lUZJrYs`): PreMarket and EOD sheets
-  - `Economic Calendar` spreadsheet (`1KVDQ-YkOU8SMeE8-wgFnUq4wE8soFeXrSFnRhmmmJxQ`)
-- **Discord webhooks** — All workflows publish formatted output to Discord channels
-- **Groq (LangChain node)** — LLM inference for news summarization in News Feed workflow
-
-### Data Flow
-
 ```
-Yahoo Finance  →  EOD Recap        →  Google Sheets (EOD sheet)
-                                   →  Discord
-Finnhub        →  News Feed        →  Discord
-Forex Factory  →  Economic Cal     →  Google Sheets (Econ Cal)
-                                   →  Discord
-All Sheets     →  Housekeeping     →  Aggregated data
-               →  Weekly Recap     →  Discord
+[Android tablet, Fully Kiosk Browser]
+        │ loads https://<name>.pages.dev
+        ▼
+[Cloudflare Pages] ← static HTML/CSS/JS only, deployed from git
+        │ the browser fetches directly:
+        ├──► api.open-meteo.com        (weather, no key, CORS: *)
+        ├──► finnhub.io/api/v1         (markets, key in query string, CORS enabled)
+        ├──► googleapis.com/calendar   (calendar, browser API key)
+        └──► http://<camera-lan-ip>    (camera snapshots, LAN only, phase 5)
 ```
 
-### n8n Node Types Used
+Fishing/solunar times are pure client-side astronomy math (vendored SunCalc) — zero network calls.
 
-- `scheduleTrigger` — Cron-based scheduling
-- `httpRequest` — All external API calls
-- `code` (JavaScript) — Data parsing, filtering, scoring, and formatting logic
-- `googleSheets` — Read/write to spreadsheets
-- `aggregate` — Combining data from multiple branches
-- LangChain nodes (`@n8n/n8n-nodes-langchain`) — LLM summarization
+## File layout
 
-## Key Implementation Details
+```
+index.html           shell + grid markup for every tile
+config.js             the only file Kevin edits day-to-day (location, keys, refresh intervals)
+css/panel.css         design tokens (colour, type scale), grid layout, night mode, motion rules
+js/
+  app.js              orchestrator: wires tiles, runs the refresh scheduler, error boundary
+  store.js            localStorage cache + staleness/backoff helper shared by every tile
+  clock.js            clock + date tile
+  weather.js          Open-Meteo tile (current/hourly/daily)
+  solunar.js          fishing/solunar tile (phase 2, built on vendor/suncalc.js)
+  calendar.js         Google Calendar tile (phase 3)
+  markets.js          Finnhub markets strip (phase 4)
+  camera.js           camera snapshot tile (phase 5)
+vendor/suncalc.js     vendored SunCalc (MIT/BSD-2-Clause) — not loaded from a CDN
+fonts/                self-hosted Archivo + Public Sans (see fonts/README.md)
+```
 
-- All schedule times are in **US Eastern Time** (ET), with auto-detection for EDT/EST in the Economic Calendar workflow
-- Volume analysis in EOD Recap flags tickers with >1.5x average volume as unusual
-- EOD Recap tracks 31+ tickers covering: futures, indexes, sectors (XLK, XLF, XLE, etc.), crypto (BTC, ETH), commodities (GLD, SLV, OIL), and rates (TLT, HYG)
-- News scoring in News Feed uses keyword-based institutional signal scoring (Fed, FOMC, earnings, tariffs, etc.) before LLM summarization
-- Credentials (Google Sheets OAuth2, Discord webhooks, Finnhub API key, Groq key) are stored in n8n's credential store and referenced by ID in the JSON — these IDs will differ per n8n instance and must be reconfigured after import
+## Key implementation rules (from the brief — do not relax these)
+
+- **Every tile fails independently.** Each fetch is wrapped in its own try/catch; one dead API must
+  never blank the rest of the panel.
+- **Cache last-good.** Each tile persists its last successful payload to `localStorage` via `store.js`
+  and keeps rendering it (dimmed, with a quiet "updated HH:MM" stamp) when a refresh fails.
+  A stale reading beats an empty box.
+- **Backoff on failure**, reset on success, capped at 30 minutes.
+- **Markets only poll 09:30–16:00 ET on weekdays** — outside that window, show the last close and stop
+  calling the API.
+- **No emoji, no icon fonts.** Weather/moon icons are inline SVG.
+- **Type scale has a floor of 18px** — nothing smaller belongs on a panel read from across a room.
+- **Solunar amber (`--solunar`) is reserved exclusively** for an active fishing period — it must not
+  appear anywhere else on the panel.
+- Repo stays **private**: camera URLs/credentials belong only in `config.js`, never committed elsewhere.
+
+## Build order
+
+Phase 1 (shell, grid, tokens, clock, weather) ships first and should always be deployable/visible on
+its own before later phases add solunar, calendar, markets, and camera tiles. See `docs/project-brief.md`
+§9 for the full phase table and §11 for open questions (tablet model, camera brand, locale, calendar
+visibility, exact coordinates) that block phases 3+.
