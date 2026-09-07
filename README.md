@@ -4,7 +4,8 @@ A wall-mounted Android tablet dashboard — clock, weather, fishing/solunar timi
 and a market-indices strip. Read from across a hallway, always on, no home server.
 
 Full design rationale, tile specs, and build order: [`docs/project-brief.md`](docs/project-brief.md).
-Repo-specific dev notes: [`CLAUDE.md`](CLAUDE.md).
+Repo-specific dev notes: [`CLAUDE.md`](CLAUDE.md). Getting this onto an actual tablet:
+[`docs/install-guide.md`](docs/install-guide.md).
 
 ## Stack
 
