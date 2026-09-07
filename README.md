@@ -1,7 +1,7 @@
 # Maison Panel
 
 A wall-mounted Android tablet dashboard — clock, weather, fishing/solunar timing, household calendar,
-and a market-indices strip. Read from across a hallway, always on, no home server.
+a market-indices strip, and Google Home speaker control. Read from across a hallway, always on.
 
 Full design rationale, tile specs, and build order: [`docs/project-brief.md`](docs/project-brief.md).
 Repo-specific dev notes: [`CLAUDE.md`](CLAUDE.md). Getting this onto an actual tablet:
@@ -13,6 +13,10 @@ Plain HTML + CSS + vanilla JS modules. No framework, no build step, no bundler. 
 site to Cloudflare Pages; the tablet's browser calls every API directly (Open-Meteo, Finnhub, Google
 Calendar). Solunar/fishing timing is local astronomy math via a vendored copy of
 [SunCalc](https://github.com/mourner/suncalc) — no network call for that tile.
+
+One exception: speaker control needs a real always-on process on the LAN (a browser can't do
+Cast-protocol device discovery), so [`/server`](server/README.md) is a small Node service meant to
+run on Kevin's PC today and a Raspberry Pi eventually. Everything else stays client-side-only.
 
 ## Running locally
 
@@ -38,6 +42,10 @@ values only Kevin has:
   public — it just needs the tablet's browser to stay signed into that Google account.
 
 Camera is still pending on hardware; see `docs/project-brief.md` §9 and §11.
+
+Speaker control (`js/speakers.js`) is built too, but needs the local bridge in
+[`/server`](server/README.md) running and reachable — see its README for setup, then set
+`config.js` → `speakers.enabled: true` and `speakers.bridgeUrl`.
 
 ## Deployment
 

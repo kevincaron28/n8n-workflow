@@ -141,6 +141,22 @@ Camera hardware hasn't been bought yet, so there's nothing to configure — `con
 `camera.enabled` stays `false` until it is. See `docs/project-brief.md` §11.2 for what's needed
 once a camera's picked (brand/model decides whether snapshot polling is even possible).
 
+## Speaker control — needs a PC or Raspberry Pi running
+
+This is the one tile that isn't purely "code on Cloudflare" — controlling Google Home speakers
+needs a real always-on helper on your home network (a browser can't do it alone). Full setup is in
+[`server/README.md`](../server/README.md); short version:
+
+1. On a PC (or later a Raspberry Pi) on the same Wi-Fi as the speakers: `cd server && npm install && npm start`.
+2. Put that machine's LAN address into `config.js` → `speakers.bridgeUrl`, and `speakers.enabled: true`.
+3. On the tablet, in Fully Kiosk Browser, turn on **"Allow insecure content"** — the panel is
+   `https://` but this helper is plain `http://` on the LAN, and browsers block mixing the two by
+   default. Same reason the camera tile needs this too.
+
+Unlike the other tiles, this one needs that PC (or Pi) turned on and running `npm start` to work at
+all — if it's off, the speaker tile just quietly disappears, same as everything else here failing
+gracefully.
+
 ## Changing settings later (location, units, etc.)
 
 Everything tunable lives in one file: **`config.js`**, at the root of the repo. To change

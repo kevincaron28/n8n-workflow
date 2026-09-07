@@ -4,6 +4,7 @@ import { initWeather } from "./weather.js";
 import { initSolunar } from "./solunar.js";
 import { initMarkets } from "./markets.js";
 import { initCalendar } from "./calendar.js";
+import { initSpeakers } from "./speakers.js";
 
 function safeInit(name, fn) {
   try {
@@ -64,13 +65,15 @@ function main() {
   safeInit("solunar", () => initSolunar(CONFIG, document.getElementById("tile-solunar")));
   safeInit("markets", () => initMarkets(CONFIG, document.getElementById("tile-markets")));
   safeInit("calendar", () => initCalendar(CONFIG, document.getElementById("tile-calendar")));
+  safeInit("speakers", () => initSpeakers(CONFIG, document.getElementById("tile-speakers")));
   safeInit("offline indicator", setupOfflineIndicator);
   safeInit("night mode", () => setupNightMode(CONFIG));
   safeInit("burn-in shift", setupBurnInShift);
   safeInit("daily reload", () => setupDailyReload(CONFIG));
 
-  // Camera footer stays hidden until phase 5 wires it up and a feed is configured.
+  // Camera footer and speakers tile stay hidden until they're actually configured.
   document.getElementById("tile-cameras").hidden = !CONFIG.camera.enabled;
+  document.getElementById("tile-speakers").hidden = !(CONFIG.speakers.enabled && CONFIG.speakers.bridgeUrl);
 
   // Solunar, calendar, markets, and camera tiles land in phases 2-5 — see docs/project-brief.md §9.
 }

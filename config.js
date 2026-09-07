@@ -34,6 +34,12 @@ export const CONFIG = {
 
   camera: { enabled: false, feeds: [] }, // TODO: blocked on camera brand/model, brief §11.2
 
+  speakers: {
+    enabled: false, // flip on once the bridge (see /server) is running and reachable
+    bridgeUrl: "", // e.g. "http://192.168.1.50:8787" — the PC/Pi running the speaker bridge
+    refresh: 10 * 1000,
+  },
+
   night: { start: 21, end: 6, dimTo: 0.35 },
   dailyReloadHour: 3,
 };
