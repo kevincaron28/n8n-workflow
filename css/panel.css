@@ -199,6 +199,28 @@ body {
   color: var(--solunar);
 }
 
+#tile-markets .market-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#tile-markets .market-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-readout);
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+}
+#tile-markets .market-label {
+  font-family: var(--font-label);
+  font-size: var(--size-label);
+  color: var(--ink-mid);
+}
+#tile-markets .market-note {
+  margin-top: 8px;
+}
+
 .market-up {
   color: var(--up);
 }

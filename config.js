@@ -16,7 +16,7 @@ export const CONFIG = {
   },
 
   markets: {
-    finnhubKey: "",
+    finnhubKey: "", // paste your Finnhub key here — the tile stays quiet with no API calls until it's set
     marketHours: { startHourEt: 9, startMinuteEt: 30, endHourEt: 16 },
     symbols: [
       { sym: "SPY", label: "S&P 500" },
