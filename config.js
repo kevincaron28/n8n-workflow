@@ -10,13 +10,13 @@ export const CONFIG = {
   refresh: {
     weather: 15 * 60 * 1000,
     calendar: 10 * 60 * 1000,
-    markets: 2 * 60 * 1000, // only polled during market hours, see markets.marketHours below
+    markets: 15 * 60 * 1000, // free Finnhub isn't truly live anyway; tighten this once markets route through the bridge
     solunar: 5 * 60 * 1000, // cheap, it's local math
     camera: 2 * 1000,
   },
 
   markets: {
-    finnhubKey: "", // paste your Finnhub key here — the tile stays quiet with no API calls until it's set
+    finnhubKey: "74x4tq9TNGGBWIzhgEae7rHWHw6RPffq",
     marketHours: { startHourEt: 9, startMinuteEt: 30, endHourEt: 16 },
     symbols: [
       { sym: "SPY", label: "S&P 500" },

@@ -30,7 +30,7 @@ function isMarketOpen(date, marketHours) {
 async function fetchQuote(symbol, key) {
   const url = new URL("https://finnhub.io/api/v1/quote");
   url.searchParams.set("symbol", symbol);
-  url.searchParams.set("token", key);
+  url.searchParams.set("apikey", key);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Finnhub ${symbol} ${res.status}`);
   return res.json();
