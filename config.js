@@ -2,7 +2,7 @@
 // section means and why (§4 config, §5 tile specs, §9 build order / open questions).
 
 export const CONFIG = {
-  location: { lat: 45.19, lon: -73.55, label: "Maison" }, // TODO: confirm exact coordinates (brief §11.5)
+  location: { lat: 45.167, lon: -73.517, label: "Maison" }, // Sherrington, QC (J0L 2N0) — brief §11.5 answered
   timezone: "America/Toronto",
   locale: "fr-CA", // TODO: confirm French vs English on the panel (brief §11.3)
   units: { temp: "celsius", wind: "kmh" },
