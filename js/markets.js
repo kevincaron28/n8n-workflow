@@ -1,9 +1,10 @@
 // Markets strip — Phase 4 (docs/project-brief.md §5.4). Financial Modeling Prep (FMP) quotes for
-// the ETF proxies in config.markets.symbols, polled only 09:30-16:00 ET on weekdays; outside that
-// window (or before an fmpKey is set in config.js) it just shows the last cached close and makes
-// no network calls. FMP's free tier is end-of-day only (confirmed via their own docs) — this
-// polling window is still the right shape even though the number won't move within a day, since
-// it's the once-a-day point the close actually updates.
+// the ETF proxies in config.markets.symbols, polled during 09:30-16:00 ET on weekdays, plus one
+// fetch any time there's no cached data yet at all (so a fresh install isn't stuck blank until the
+// next market session). Outside that window with a cache already in hand — or before an fmpKey is
+// set in config.js — it just shows the last close and makes no network calls. FMP's free tier is
+// end-of-day only (confirmed via their own docs), so that close is the freshest data there is
+// regardless of when it's fetched.
 import { loadCache, saveCache, formatUpdatedAt } from "./store.js";
 
 const MINUTE_MS = 60 * 1000;
@@ -91,24 +92,26 @@ export function initMarkets(config, root) {
     const now = new Date();
     const open = isMarketOpen(now, config.markets.marketHours);
     const key = config.markets.fmpKey;
+    const cached = loadCache(CACHE_KEY);
 
-    if (open && key) {
+    // Fetch during market hours (to catch the close as it lands), or any time there's no cache
+    // yet at all — otherwise a fresh install loading outside 09:30-16:00 ET would show nothing
+    // until the next session, even though last close is available from FMP right now regardless
+    // of the clock.
+    if (key && (open || !cached)) {
       try {
         const quotes = await fetchAllQuotes(config.markets.symbols, key);
         if (Object.keys(quotes).length === 0) throw new Error("no quotes returned");
         saveCache(CACHE_KEY, quotes);
         interval = config.refresh.markets;
-        render(root, config, quotes, { marketOpen: true });
+        render(root, config, quotes, { marketOpen: open, fetchedAt: Date.now() });
       } catch (err) {
         console.warn("[markets]", err);
         interval = Math.min(interval * 2, MAX_INTERVAL_MS);
-        const cached = loadCache(CACHE_KEY);
         if (cached) render(root, config, cached.data, { marketOpen: false, fetchedAt: cached.fetchedAt });
       }
-    } else {
-      // market closed, or no key configured yet — never call the API, just show the last close
-      const cached = loadCache(CACHE_KEY);
-      if (cached) render(root, config, cached.data, { marketOpen: false, fetchedAt: cached.fetchedAt });
+    } else if (cached) {
+      render(root, config, cached.data, { marketOpen: false, fetchedAt: cached.fetchedAt });
     }
 
     setTimeout(tick, open ? interval : CLOSED_CHECK_MS);
