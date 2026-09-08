@@ -28,7 +28,7 @@ export const CONFIG = {
 
   calendar: {
     mode: "embed", // "embed" = private iframe, your own Google login on the tablet (current choice)
-    calendarId: "", // your Google account email — the calendar to show. Leave blank to hide the tile.
+    calendarId: "kevincaron28@gmail.com", // the calendar to show
     googleApiKey: "", // only used if you ever switch mode to "api" (see docs/project-brief.md §5.3)
   },
 
