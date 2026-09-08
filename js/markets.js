@@ -31,24 +31,42 @@ function isMarketOpen(date, marketHours) {
   return isWeekday && minutesNow >= openMin && minutesNow < closeMin;
 }
 
+function parseQuotes(data) {
+  const quotes = {};
+  for (const q of Array.isArray(data) ? data : []) {
+    if (q?.symbol) quotes[q.symbol] = q;
+  }
+  return quotes;
+}
+
 // One batch call for every symbol, not N parallel single-symbol calls. Firing 4 simultaneous
 // requests at a free-tier API is exactly the kind of thing that trips a concurrent-connection
 // limit — 3 silently failing while 1 succeeds is consistent with that, and matches what showed up
 // on the tablet (only SPY rendering). FMP's batch-quote endpoint returns every requested symbol in
 // one response; a symbol FMP can't find is just missing from the array, so a single bad ticker
 // still can't blank the others.
-async function fetchAllQuotes(symbols, key) {
+//
+// If markets.bridgeUrl is set (the PC/Pi bridge, see /server), route through it instead — the
+// bridge holds the FMP key server-side (an env var, never shipped to the browser) rather than in
+// this public config.js. Until Kevin sets that up, bridgeUrl stays empty and this fetches FMP
+// directly with fmpKey, exactly as before.
+async function fetchAllQuotes(symbols, marketsConfig) {
+  const symbolList = symbols.map((s) => s.sym).join(",");
+
+  if (marketsConfig.bridgeUrl) {
+    const url = new URL(`${marketsConfig.bridgeUrl}/api/markets`);
+    url.searchParams.set("symbols", symbolList);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`bridge markets ${res.status}`);
+    return parseQuotes(await res.json());
+  }
+
   const url = new URL("https://financialmodelingprep.com/stable/batch-quote");
-  url.searchParams.set("symbols", symbols.map((s) => s.sym).join(","));
-  url.searchParams.set("apikey", key);
+  url.searchParams.set("symbols", symbolList);
+  url.searchParams.set("apikey", marketsConfig.fmpKey);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`FMP batch-quote ${res.status}`);
-  const data = await res.json();
-  const quotes = {};
-  for (const q of Array.isArray(data) ? data : []) {
-    if (q?.symbol) quotes[q.symbol] = q;
-  }
-  return quotes;
+  return parseQuotes(await res.json());
 }
 
 function arrow(change) {
@@ -90,16 +108,16 @@ export function initMarkets(config, root) {
   async function tick() {
     const now = new Date();
     const open = isMarketOpen(now, config.markets.marketHours);
-    const key = config.markets.fmpKey;
+    const hasCredentials = Boolean(config.markets.bridgeUrl || config.markets.fmpKey);
     const cached = loadCache(CACHE_KEY);
 
     // Fetch during market hours (to catch the close as it lands), or any time there's no cache
     // yet at all — otherwise a fresh install loading outside 09:30-16:00 ET would show nothing
     // until the next session, even though last close is available from FMP right now regardless
     // of the clock.
-    if (key && (open || !cached)) {
+    if (hasCredentials && (open || !cached)) {
       try {
-        const quotes = await fetchAllQuotes(config.markets.symbols, key);
+        const quotes = await fetchAllQuotes(config.markets.symbols, config.markets);
         if (Object.keys(quotes).length === 0) throw new Error("no quotes returned");
         saveCache(CACHE_KEY, quotes);
         interval = config.refresh.markets;

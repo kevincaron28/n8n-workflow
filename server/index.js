@@ -1,11 +1,13 @@
-// Speaker bridge for Maison Panel. A browser can't do Cast-protocol device discovery or control
-// (no CORS-friendly API for it exists) — this small local process does that over the LAN instead,
-// and exposes it as plain HTTP the tablet's browser can call. See ../docs/speaker-bridge.md.
+// Local bridge for Maison Panel. Started as speaker control — a browser can't do Cast-protocol
+// device discovery itself — and now also optionally proxies markets, so the FMP key can live here
+// (an environment variable, never committed) instead of in the publicly-served config.js. See
+// server/README.md.
 const express = require("express");
 const ChromecastAPI = require("chromecast-api");
 
 const PORT = process.env.PORT || 8787;
 const STATUS_TIMEOUT_MS = 4000;
+const FMP_KEY = process.env.FMP_KEY || "";
 
 function slugify(name) {
   return name
@@ -127,6 +129,30 @@ app.post("/api/speakers/:id/volume", (req, res) => {
     return res.status(400).json({ ok: false, error: "level must be a number between 0 and 1" });
   }
   device.setVolume(level, (err) => res.json({ ok: !err, error: err?.message }));
+});
+
+// Optional markets proxy: same FMP batch-quote call js/markets.js makes directly today, just with
+// the key held server-side (FMP_KEY env var) instead of shipped in config.js. Only live once
+// config.markets.bridgeUrl is set on the client — until then markets.js keeps working exactly as
+// it does now, calling FMP directly with the key in config.js.
+app.get("/api/markets", async (req, res) => {
+  if (!FMP_KEY) {
+    return res.status(503).json({ ok: false, error: "FMP_KEY is not set in this bridge's environment" });
+  }
+  const symbols = req.query.symbols;
+  if (!symbols) {
+    return res.status(400).json({ ok: false, error: "missing ?symbols=SPY,QQQ,... query param" });
+  }
+  try {
+    const url = new URL("https://financialmodelingprep.com/stable/batch-quote");
+    url.searchParams.set("symbols", symbols);
+    url.searchParams.set("apikey", FMP_KEY);
+    const fmpRes = await fetch(url);
+    if (!fmpRes.ok) throw new Error(`FMP ${fmpRes.status}`);
+    res.json(await fmpRes.json());
+  } catch (err) {
+    res.status(502).json({ ok: false, error: err.message });
+  }
 });
 
 app.listen(PORT, () => {

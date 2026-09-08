@@ -1,14 +1,22 @@
-# Speaker bridge
+# Local bridge
 
-A small local Node service that discovers and controls Google Home / Chromecast-enabled speakers
-on the LAN, and exposes them as plain HTTP for the tablet's browser to call.
+A small local Node service, meant to run on Kevin's PC for now and move to a Raspberry Pi later.
+It does two things:
 
-**Why this exists at all:** a browser genuinely cannot do this itself. Controlling a Cast device
-needs local network device discovery (mDNS) and a raw socket protocol — there's no CORS-friendly
-public API for it. This is the one piece of Maison Panel that needs a real always-on process
-somewhere on the LAN, which is why it lives here instead of in `/js` with everything else. It's
-meant to run on Kevin's PC for now, and move to a Raspberry Pi later — the code doesn't change
-either way, since it's plain Node.
+1. **Speaker control** — discovers and controls Google Home / Chromecast-enabled speakers on the
+   LAN, exposed as plain HTTP for the tablet's browser to call.
+2. **Markets proxy** (optional) — re-serves FMP quotes with the API key held here (an environment
+   variable) instead of in the publicly-served `config.js`.
+
+**Why speaker control needs this at all:** a browser genuinely cannot do it itself. Controlling a
+Cast device needs local network device discovery (mDNS) and a raw socket protocol — there's no
+CORS-friendly public API for it. That's the one piece of Maison Panel that needs a real always-on
+process somewhere on the LAN, which is why it lives here instead of in `/js` with everything else.
+
+**Why markets is here too:** a server-to-server call has no CORS restriction and, more importantly,
+never exposes the key to the browser at all — `view-source` on the deployed page can't see a key
+that was never sent to it in the first place. This is optional; markets keeps working exactly as
+it does today (direct client-side fetch) until `config.js` → `markets.bridgeUrl` is set.
 
 ## Setup
 
@@ -43,7 +51,7 @@ curl http://localhost:8787/api/speakers
 
 1. Find this machine's LAN IP address (not `localhost` — the tablet needs to reach it over
    Wi-Fi): `ipconfig` on Windows, `ip addr` or `hostname -I` on Linux/Raspberry Pi OS.
-2. In the repo's `config.js`:
+2. In the repo's `config.js`, for speakers:
    ```js
    speakers: {
      enabled: true,
@@ -51,11 +59,34 @@ curl http://localhost:8787/api/speakers
      refresh: 10 * 1000,
    },
    ```
-3. Push that change — Cloudflare Pages redeploys the panel automatically.
+   And, if you also want markets routed through here (see **Markets proxy setup** below):
+   ```js
+   markets: {
+     bridgeUrl: "http://192.168.1.50:8787", // same address as speakers.bridgeUrl
+     // fmpKey stops being read once bridgeUrl is set — safe to remove it from config.js at that point
+   },
+   ```
+3. Push that change — Cloudflare redeploys the panel automatically.
 4. **On the tablet**, in Fully Kiosk Browser: enable **"Allow insecure content" / "Enable Mixed
    Content"** (exact name varies by version, under Web Content Settings). The panel is served over
    `https://`, but this bridge is plain `http://` on the LAN — browsers block that combination by
    default, same as the camera tile in the brief. This is a one-time setting, not a code fix.
+
+## Markets proxy setup
+
+Set `FMP_KEY` in the environment before starting the bridge — it's never read from `config.js` or
+committed anywhere:
+
+```
+# macOS/Linux
+FMP_KEY=your-fmp-key npm start
+
+# Windows (PowerShell)
+$env:FMP_KEY="your-fmp-key"; npm start
+```
+
+Without `FMP_KEY` set, `/api/markets` responds `503` and the panel just keeps using its existing
+direct-to-FMP path — nothing breaks by leaving this unconfigured.
 
 ## Keeping it running
 
@@ -64,9 +95,9 @@ Once this moves to a Raspberry Pi, run it as a real background service so it sur
 e.g. a systemd unit:
 
 ```ini
-# /etc/systemd/system/maison-speaker-bridge.service
+# /etc/systemd/system/maison-bridge.service
 [Unit]
-Description=Maison Panel speaker bridge
+Description=Maison Panel local bridge
 After=network-online.target
 
 [Service]
@@ -74,12 +105,14 @@ WorkingDirectory=/home/pi/Maison-Panel/server
 ExecStart=/usr/bin/node index.js
 Restart=on-failure
 User=pi
+Environment=FMP_KEY=your-fmp-key
+# ^ only needed if markets is routed through the bridge — omit otherwise
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Then `sudo systemctl enable --now maison-speaker-bridge`.
+Then `sudo systemctl enable --now maison-bridge`.
 
 ## API
 
@@ -93,6 +126,7 @@ All responses are JSON. No auth — this is a LAN-only tool with nothing secret 
 | `/api/speakers/:id/resume` | POST | — | resume/unpause |
 | `/api/speakers/:id/stop` | POST | — | stop |
 | `/api/speakers/:id/volume` | POST | `{ "level": 0.0-1.0 }` | set volume |
+| `/api/markets?symbols=SPY,QQQ` | GET | — | FMP batch quotes; `503` if `FMP_KEY` isn't set |
 
 A speaker's `:id` is a slug of its name (e.g. "Living Room speaker" → `living-room-speaker`) —
 check `/api/speakers` to see the exact ids for your devices.

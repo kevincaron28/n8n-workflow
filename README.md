@@ -36,9 +36,11 @@ lives in [`config.js`](config.js). That's the only file meant to be hand-edited 
 Phases 1–4 (weather, solunar/fishing, calendar, markets) are built and configured:
 
 - **Markets** uses Financial Modeling Prep (`config.js` → `markets.fmpKey`), not Finnhub — the free
-  tier is end-of-day only, same limitation Finnhub's free tier turned out to have. Genuinely live
-  intraday quotes are planned to route through the speaker bridge (see `/server`) once the PC/Pi is
-  set up, the same way speaker control avoids the browser's own limitations.
+  tier is end-of-day only, same limitation Finnhub's free tier turned out to have. The key currently
+  ships in `config.js` as plain client-side JS; `/server` can now proxy markets too (holding the key
+  as a server-side env var instead) — set `config.js` → `markets.bridgeUrl` once the PC/Pi bridge is
+  running to switch over. Genuinely live intraday quotes are a separate, later upgrade to what that
+  proxy fetches.
 - **Calendar** is a private Google Calendar iframe embed (Path B in the brief) pointed at
   `config.js` → `calendar.calendarId` — nothing needed to be made public, it just needs the
   tablet's browser signed into that Google account.

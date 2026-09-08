@@ -14,13 +14,16 @@ Cloudflare Pages. The tablet's browser calls every external API directly; there 
 See `docs/project-brief.md` for the full brief this build follows (architecture rationale, tile specs,
 resilience requirements, design direction, and the phased build order).
 
-**One deliberate exception:** `/server` is a small local Node process (the "speaker bridge") that
+**One deliberate exception:** `/server` is a small local Node process (the "local bridge") that
 discovers and controls Google Home / Chromecast speakers over the LAN — a browser genuinely cannot
 do Cast-protocol device discovery itself, there's no API for it. It runs on Kevin's PC today, a
 Raspberry Pi eventually, and the panel talks to it exactly like the camera tile talks to a LAN
 camera: plain HTTP, LAN-only, fails independently, stays quiet if unreachable or unconfigured. See
-`server/README.md`. Nothing else in this repo gets this exception — every other tile stays
-client-side-only against a public API or local math.
+`server/README.md`. It also optionally proxies markets (`/api/markets`, holding the FMP key as a
+server-side env var instead of in the publicly-served `config.js`) — off by default
+(`config.markets.bridgeUrl` empty), markets keeps working exactly as it does today until that's
+set. Nothing else in this repo gets this exception — every other tile stays client-side-only
+against a public API or local math.
 
 There are no lint, build, or test commands. Changes are validated by opening `index.html` (a local
 static server is enough — see below) and, ultimately, by the deployed Pages URL on the actual tablet.
@@ -50,7 +53,7 @@ and service workers, so always serve it over `http(s)`.
         ├──► financialmodelingprep.com   (markets, key in query string, CORS enabled)
         ├──► googleapis.com/calendar     (calendar, browser API key)
         ├──► http://<camera-lan-ip>      (camera snapshots, LAN only, phase 5)
-        └──► http://<pc-or-pi-ip>:8787   (speaker bridge, LAN only — see /server)
+        └──► http://<pc-or-pi-ip>:8787   (local bridge: speakers, optionally markets — see /server)
 ```
 
 Fishing/solunar times are pure client-side astronomy math (vendored SunCalc) — zero network calls.
@@ -73,7 +76,7 @@ js/
   speakers.js         Google Home / Chromecast speaker tile — talks to /server, not the devices
 vendor/suncalc.js     vendored SunCalc (MIT/BSD-2-Clause) — not loaded from a CDN
 fonts/                self-hosted Archivo + Public Sans (see fonts/README.md)
-server/               speaker bridge — the one real Node process in this repo (see server/README.md)
+server/               local bridge (speakers + optional markets proxy) — the one real Node process in this repo (see server/README.md)
 ```
 
 ## Key implementation rules (from the brief — do not relax these)
