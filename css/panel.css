@@ -95,8 +95,23 @@ body {
 #tile-main {
   display: grid;
   grid-template-columns: 1.1fr 1fr 0.9fr;
-  gap: 40px;
+  gap: 24px;
   min-height: 0;
+}
+
+/* card treatment — every info tile gets a consistent background, border, and radius, per the
+   "premium smart-home panel" direction (subtle borders, consistent spacing, restrained — not
+   heavy shadows or a giant per-card accent). Deliberately no shadow: a border + background step
+   against --ground already reads as a distinct surface without adding visual weight. */
+#tile-weather,
+#tile-calendar,
+#tile-solunar,
+#tile-markets,
+#tile-speakers {
+  background: var(--ground-raised);
+  border: 1px solid color-mix(in srgb, var(--ink-mid) 20%, transparent);
+  border-radius: 12px;
+  padding: 24px;
 }
 
 #tile-main > section {
@@ -178,15 +193,13 @@ body {
   min-height: 0;
   color: var(--ink-mid);
 }
-/* Google's embed is white and can't be restyled from outside — frame it in a dark mat so it reads
-   as a deliberate window rather than a foreign rectangle dropped on the panel. */
+/* Google's embed is white and can't be restyled from outside — the card background above already
+   frames it as a deliberate window; this just insets the iframe a little from the card's own edge
+   rather than butting the white rectangle right up against the border. */
 #tile-calendar .calendar-embed-container {
   flex: 1;
   min-height: 0;
-  background: var(--ground-raised);
-  border: 1px solid color-mix(in srgb, var(--ink-mid) 30%, transparent);
-  border-radius: 8px;
-  padding: 6px;
+  border-radius: 6px;
   overflow: hidden;
 }
 #tile-calendar .calendar-embed-container iframe {
@@ -201,7 +214,7 @@ body {
 #tile-side {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 24px;
 }
 
 #tile-solunar .moon-disc {
@@ -242,20 +255,28 @@ body {
 #tile-markets .market-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
 }
+/* stat-tile shape: label on its own line, values below — survives a narrow card without wrapping
+   mid-number, unlike a single label/price/change row competing for the same line. */
 #tile-markets .market-row {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-family: var(--font-readout);
-  font-variant-numeric: tabular-nums;
-  font-size: 20px;
+  flex-direction: column;
+  gap: 2px;
 }
 #tile-markets .market-label {
   font-family: var(--font-label);
-  font-size: var(--size-label);
+  font-size: 15px; /* matches the other secondary/status labels (speaker-status, camera-feed-status) */
   color: var(--ink-mid);
+}
+#tile-markets .market-values {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-family: var(--font-readout);
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
 }
 #tile-markets .market-note {
   margin-top: 8px;
@@ -334,11 +355,12 @@ body {
 /* footer: camera strip — phase 5 */
 #tile-cameras {
   background: var(--ground-raised);
-  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--ink-mid) 20%, transparent);
+  border-radius: 12px;
   height: 200px;
   display: flex;
   gap: 16px;
-  padding: 8px;
+  padding: 12px;
 }
 #tile-cameras[hidden] {
   display: none;

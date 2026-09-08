@@ -67,8 +67,10 @@ function render(root, config, quotes, meta) {
     row.className = `market-row ${q.change >= 0 ? "market-up" : "market-down"}`;
     row.innerHTML =
       `<span class="market-label">${s.label}</span>` +
+      `<span class="market-values">` +
       `<span class="market-price">${q.price.toFixed(2)}</span>` +
-      `<span class="market-change">${arrow(q.change)} ${q.change >= 0 ? "+" : ""}${q.changePercentage.toFixed(2)}%</span>`;
+      `<span class="market-change">${arrow(q.change)} ${q.change >= 0 ? "+" : ""}${q.changePercentage.toFixed(2)}%</span>` +
+      `</span>`;
     list.appendChild(row);
   }
 

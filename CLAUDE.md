@@ -93,6 +93,20 @@ server/               speaker bridge — the one real Node process in this repo 
 - Repo stays **private**: camera URLs/credentials and the speaker bridge's LAN address belong only
   in `config.js`, never committed elsewhere.
 
+## Visual design — supersedes brief §8 on one point
+
+`docs/project-brief.md` §8 explicitly rejects a card-based look ("every tile in an identical
+rounded box... flattens hierarchy"). That's no longer the direction: at Kevin's request, the panel
+now follows a broader improvement plan (audited and being worked through in small phases — camera,
+touch targets, markets robustness, and this) that calls for a "premium smart-home panel" look —
+cards with a subtle border and consistent radius, consistent spacing, restrained (no heavy shadow).
+Every top-level tile (`#tile-weather`, `#tile-calendar`, `#tile-solunar`, `#tile-markets`,
+`#tile-speakers`, `#tile-cameras`) shares that treatment in `css/panel.css`. Everything else from
+§8 still holds: large numbers for primary readouts, small muted secondary text, no shadow beyond
+the card border itself, solunar amber still reserved exclusively for an active period, type floor
+still 18px for anything meant to be read as a primary value (secondary/status labels like
+`.market-label` or `.speaker-status` sit a bit under that, matching existing precedent).
+
 ## Build order
 
 Phase 1 (shell, grid, tokens, clock, weather) ships first and should always be deployable/visible on
