@@ -31,26 +31,23 @@ function isMarketOpen(date, marketHours) {
   return isWeekday && minutesNow >= openMin && minutesNow < closeMin;
 }
 
-async function fetchQuote(symbol, key) {
-  const url = new URL("https://financialmodelingprep.com/stable/quote");
-  url.searchParams.set("symbol", symbol);
+// One batch call for every symbol, not N parallel single-symbol calls. Firing 4 simultaneous
+// requests at a free-tier API is exactly the kind of thing that trips a concurrent-connection
+// limit — 3 silently failing while 1 succeeds is consistent with that, and matches what showed up
+// on the tablet (only SPY rendering). FMP's batch-quote endpoint returns every requested symbol in
+// one response; a symbol FMP can't find is just missing from the array, so a single bad ticker
+// still can't blank the others.
+async function fetchAllQuotes(symbols, key) {
+  const url = new URL("https://financialmodelingprep.com/stable/batch-quote");
+  url.searchParams.set("symbols", symbols.map((s) => s.sym).join(","));
   url.searchParams.set("apikey", key);
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`FMP ${symbol} ${res.status}`);
+  if (!res.ok) throw new Error(`FMP batch-quote ${res.status}`);
   const data = await res.json();
-  const quote = Array.isArray(data) ? data[0] : data;
-  if (!quote) throw new Error(`FMP ${symbol}: empty response`);
-  return quote;
-}
-
-// Each symbol fails independently — one bad quote shouldn't blank the others.
-async function fetchAllQuotes(symbols, key) {
-  const results = await Promise.allSettled(symbols.map((s) => fetchQuote(s.sym, key)));
   const quotes = {};
-  results.forEach((r, i) => {
-    if (r.status === "fulfilled") quotes[symbols[i].sym] = r.value;
-    else console.warn(`[markets] ${symbols[i].sym}`, r.reason);
-  });
+  for (const q of Array.isArray(data) ? data : []) {
+    if (q?.symbol) quotes[q.symbol] = q;
+  }
   return quotes;
 }
 
