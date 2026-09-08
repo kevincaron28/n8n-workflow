@@ -42,15 +42,15 @@ and service workers, so always serve it over `http(s)`.
 
 ```
 [Android tablet, Fully Kiosk Browser]
-        │ loads https://<name>.pages.dev
+        │ loads https://<name>.workers.dev
         ▼
-[Cloudflare Pages] ← static HTML/CSS/JS only, deployed from git
+[Cloudflare Workers, static assets] ← static HTML/CSS/JS only, deployed via wrangler.toml from git
         │ the browser fetches directly:
-        ├──► api.open-meteo.com        (weather, no key, CORS: *)
-        ├──► finnhub.io/api/v1         (markets, key in query string, CORS enabled)
-        ├──► googleapis.com/calendar   (calendar, browser API key)
-        ├──► http://<camera-lan-ip>    (camera snapshots, LAN only, phase 5)
-        └──► http://<pc-or-pi-ip>:8787 (speaker bridge, LAN only — see /server)
+        ├──► api.open-meteo.com          (weather, no key, CORS: *)
+        ├──► financialmodelingprep.com   (markets, key in query string, CORS enabled)
+        ├──► googleapis.com/calendar     (calendar, browser API key)
+        ├──► http://<camera-lan-ip>      (camera snapshots, LAN only, phase 5)
+        └──► http://<pc-or-pi-ip>:8787   (speaker bridge, LAN only — see /server)
 ```
 
 Fishing/solunar times are pure client-side astronomy math (vendored SunCalc) — zero network calls.
@@ -68,7 +68,7 @@ js/
   weather.js          Open-Meteo tile (current/hourly/daily)
   solunar.js          fishing/solunar tile (phase 2, built on vendor/suncalc.js)
   calendar.js         Google Calendar tile (phase 3)
-  markets.js          Finnhub markets strip (phase 4)
+  markets.js          FMP (Financial Modeling Prep) markets strip (phase 4)
   camera.js           camera snapshot tile (phase 5)
   speakers.js         Google Home / Chromecast speaker tile — talks to /server, not the devices
 vendor/suncalc.js     vendored SunCalc (MIT/BSD-2-Clause) — not loaded from a CDN

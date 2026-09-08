@@ -1,6 +1,9 @@
-// Markets strip — Phase 4 (docs/project-brief.md §5.4). Finnhub quotes for the ETF proxies in
-// config.markets.symbols, polled only 09:30-16:00 ET on weekdays; outside that window (or before a
-// finnhubKey is set in config.js) it just shows the last cached close and makes no network calls.
+// Markets strip — Phase 4 (docs/project-brief.md §5.4). Financial Modeling Prep (FMP) quotes for
+// the ETF proxies in config.markets.symbols, polled only 09:30-16:00 ET on weekdays; outside that
+// window (or before an fmpKey is set in config.js) it just shows the last cached close and makes
+// no network calls. FMP's free tier is end-of-day only (confirmed via their own docs) — this
+// polling window is still the right shape even though the number won't move within a day, since
+// it's the once-a-day point the close actually updates.
 import { loadCache, saveCache, formatUpdatedAt } from "./store.js";
 
 const MINUTE_MS = 60 * 1000;
@@ -28,12 +31,15 @@ function isMarketOpen(date, marketHours) {
 }
 
 async function fetchQuote(symbol, key) {
-  const url = new URL("https://finnhub.io/api/v1/quote");
+  const url = new URL("https://financialmodelingprep.com/stable/quote");
   url.searchParams.set("symbol", symbol);
   url.searchParams.set("apikey", key);
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Finnhub ${symbol} ${res.status}`);
-  return res.json();
+  if (!res.ok) throw new Error(`FMP ${symbol} ${res.status}`);
+  const data = await res.json();
+  const quote = Array.isArray(data) ? data[0] : data;
+  if (!quote) throw new Error(`FMP ${symbol}: empty response`);
+  return quote;
 }
 
 // Each symbol fails independently — one bad quote shouldn't blank the others.
@@ -60,11 +66,11 @@ function render(root, config, quotes, meta) {
     const q = quotes[s.sym];
     if (!q) continue;
     const row = document.createElement("div");
-    row.className = `market-row ${q.d >= 0 ? "market-up" : "market-down"}`;
+    row.className = `market-row ${q.change >= 0 ? "market-up" : "market-down"}`;
     row.innerHTML =
       `<span class="market-label">${s.label}</span>` +
-      `<span class="market-price">${q.c.toFixed(2)}</span>` +
-      `<span class="market-change">${arrow(q.d)} ${q.d >= 0 ? "+" : ""}${q.dp.toFixed(2)}%</span>`;
+      `<span class="market-price">${q.price.toFixed(2)}</span>` +
+      `<span class="market-change">${arrow(q.change)} ${q.change >= 0 ? "+" : ""}${q.changePercentage.toFixed(2)}%</span>`;
     list.appendChild(row);
   }
 
@@ -84,7 +90,7 @@ export function initMarkets(config, root) {
   async function tick() {
     const now = new Date();
     const open = isMarketOpen(now, config.markets.marketHours);
-    const key = config.markets.finnhubKey;
+    const key = config.markets.fmpKey;
 
     if (open && key) {
       try {

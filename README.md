@@ -10,7 +10,7 @@ Repo-specific dev notes: [`CLAUDE.md`](CLAUDE.md). Getting this onto an actual t
 ## Stack
 
 Plain HTML + CSS + vanilla JS modules. No framework, no build step, no bundler. Deployed as a static
-site to Cloudflare Pages; the tablet's browser calls every API directly (Open-Meteo, Finnhub, Google
+site to Cloudflare Pages; the tablet's browser calls every API directly (Open-Meteo, FMP, Google
 Calendar). Solunar/fishing timing is local astronomy math via a vendored copy of
 [SunCalc](https://github.com/mourner/suncalc) — no network call for that tile.
 
@@ -33,13 +33,15 @@ lives in [`config.js`](config.js). That's the only file meant to be hand-edited 
 
 ## Status
 
-Phases 1–4 (weather, solunar/fishing, calendar, markets) are built. Two of them are waiting on
-values only Kevin has:
+Phases 1–4 (weather, solunar/fishing, calendar, markets) are built and configured:
 
-- `config.js` → `markets.finnhubKey` — paste the Finnhub key in; the strip stays quiet until then.
-- `config.js` → `calendar.calendarId` — your Google account email; the tile stays quiet until then.
-  Calendar is built as a private iframe embed (Path B in the brief), so nothing needs to be made
-  public — it just needs the tablet's browser to stay signed into that Google account.
+- **Markets** uses Financial Modeling Prep (`config.js` → `markets.fmpKey`), not Finnhub — the free
+  tier is end-of-day only, same limitation Finnhub's free tier turned out to have. Genuinely live
+  intraday quotes are planned to route through the speaker bridge (see `/server`) once the PC/Pi is
+  set up, the same way speaker control avoids the browser's own limitations.
+- **Calendar** is a private Google Calendar iframe embed (Path B in the brief) pointed at
+  `config.js` → `calendar.calendarId` — nothing needed to be made public, it just needs the
+  tablet's browser signed into that Google account.
 
 Camera is still pending on hardware; see `docs/project-brief.md` §9 and §11.
 

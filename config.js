@@ -10,13 +10,13 @@ export const CONFIG = {
   refresh: {
     weather: 15 * 60 * 1000,
     calendar: 10 * 60 * 1000,
-    markets: 15 * 60 * 1000, // free Finnhub isn't truly live anyway; tighten this once markets route through the bridge
+    markets: 15 * 60 * 1000, // free FMP is end-of-day, not live; tighten this once markets route through the bridge
     solunar: 5 * 60 * 1000, // cheap, it's local math
     camera: 2 * 1000,
   },
 
   markets: {
-    finnhubKey: "74x4tq9TNGGBWIzhgEae7rHWHw6RPffq",
+    fmpKey: "74x4tq9TNGGBWIzhgEae7rHWHw6RPffq",
     marketHours: { startHourEt: 9, startMinuteEt: 30, endHourEt: 16 },
     symbols: [
       { sym: "SPY", label: "S&P 500" },

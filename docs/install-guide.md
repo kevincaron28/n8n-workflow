@@ -11,30 +11,31 @@ There are two parts:
 
 ---
 
-## Part 1 — Put the website online (Cloudflare Pages)
+## Part 1 — Put the website online (Cloudflare Workers)
 
 Think of this step as: "take the code and give it a real web address." Right now the code just
-sits in GitHub; it isn't a website yet. Cloudflare Pages reads the code and turns it into
-`https://something.pages.dev` that the tablet can open.
+sits in GitHub; it isn't a website yet. Cloudflare's dashboard now onboards new static sites
+through its **Workers** flow (Pages and Workers have merged) — it reads the code and turns it into
+`https://something.workers.dev` that the tablet can open.
 
 1. Go to **[dash.cloudflare.com](https://dash.cloudflare.com)** and log in (Kevin already has an
    account from `cpt-ai.pages.dev`).
 2. In the left sidebar, click **Workers & Pages**.
-3. Click **Create** → the **Pages** tab → **Connect to Git**.
+3. Click **Create** → **Connect to Git**.
 4. If GitHub isn't connected yet, click **Connect GitHub** and approve it. Since the repo is
    **private**, make sure you grant Cloudflare access to `kevincaron28/Maison-Panel` specifically
    (either "all repositories" or pick it from the list).
 5. Select the **Maison-Panel** repository, then click **Begin setup**.
-6. Pick the branch to deploy. For a first look you can pick the current working branch; for the
-   real, permanent install, merge it into `main` on GitHub first and deploy `main` — that's the
-   branch that should always be live on the wall.
-7. Build settings — this project has **no build step**, so:
-   - Framework preset: **None**
-   - Build command: *(leave blank)*
-   - Build output directory: `/` (the default — just leave it as-is)
-8. Click **Save and Deploy**. Wait about 30–60 seconds.
-9. Cloudflare gives you a URL like `https://maison-panel.pages.dev` (or `maison-panel-xxx.pages.dev`
-   if that name's taken). **Write this URL down** — the tablet needs it in Part 2.
+6. Pick the branch to deploy — **`main`**, the branch that should always be live on the wall.
+7. Build settings — this project has **no build step**, but Cloudflare's Workers flow still asks
+   for two fields:
+   - **Build command**: leave **blank**
+   - **Deploy command**: `npx wrangler deploy` — the repo already has a `wrangler.toml` telling
+     Cloudflare to serve the whole repo as static files, no Worker script needed
+8. Click **Deploy**. Wait about 30–60 seconds.
+9. Cloudflare gives you a URL like `https://maison-panel.kevincaron28.workers.dev`. **Write this
+   URL down** — the tablet needs it in Part 2. On the project's **Domains** tab, make sure the
+   **Production** toggle next to that URL is switched **on** — that's what actually makes it public.
 10. Open that URL in any browser (your phone, your laptop). You should see: a clock, today's
     weather, and a moon phase under "Pêche." That means it worked.
 
@@ -58,7 +59,7 @@ never sleeps, and never lets anyone accidentally swipe away from it.
 
 1. In Fully Kiosk Browser, open **Settings** (usually a long-press on the screen, or the menu
    icon) → **Web Content Settings** → **Start URL**.
-2. Paste in the `pages.dev` URL from Part 1.
+2. Paste in the `workers.dev` URL from Part 1.
 3. Go back to the main screen — it should now load the panel.
 
 ### 2.3 Make it behave like a real wall panel, not a browser
@@ -109,31 +110,31 @@ weather every 15 minutes, and the moon/fishing info every 5 minutes, entirely on
   old cached reading because the live fetch failed — that's expected behavior, not a bug (see
   `CLAUDE.md` — every tile is designed to degrade gracefully rather than go blank).
 - **Whole panel is blank/white**: that means the page itself didn't load — double check the Start
-  URL in Fully Kiosk Browser matches the `pages.dev` address exactly.
+  URL in Fully Kiosk Browser matches the `workers.dev` address exactly.
 - **Panel looks right but is stuck on an old version**: on the tablet, in Fully Kiosk Browser,
   there's a manual **Reload Start URL** action in the settings/menu — or just wait, since the
   panel auto-reloads itself once a day at 3am anyway (`config.js` → `dailyReloadHour`).
 
 ## Turning on calendar and markets
 
-Weather and solunar work with zero setup. Calendar and markets are built, but each is waiting on
-one value only you can provide — until then, that tile just stays quietly empty rather than showing
-an error.
+Weather and solunar work with zero setup. Calendar and markets are both configured now too — here's
+what each still needs from the tablet side to actually show anything.
 
-**Calendar** — built as a private embed, so nothing needs to be made public:
-
-1. In `config.js`, set `calendar.calendarId` to your Google account's email address.
-2. On the tablet, sign into that same Google account in Fully Kiosk Browser (Settings → there's a
-   "manage Google account" / normal Chrome-engine sign-in flow — it's the same as signing into
-   Chrome on any Android device). The calendar tile only shows events while that sign-in holds.
-3. Push the `config.js` change to `main`; Cloudflare redeploys automatically.
+**Calendar** — built as a private embed, so nothing needs to be made public. `config.js` →
+`calendar.calendarId` is already set to Kevin's Google account. The one remaining step is on the
+tablet: sign into that same Google account in Fully Kiosk Browser (Settings → there's a "manage
+Google account" / normal Chrome-engine sign-in flow — it's the same as signing into Chrome on any
+Android device). The calendar tile only shows events while that sign-in holds.
 
 If it ends up looking too much like a plain Google Calendar widget bolted onto the panel (it will —
 that's the trade-off for keeping it private), the fallback is Path A in `docs/project-brief.md`
 §5.3: make a calendar public and switch `calendar.mode` to `"api"` for full styling control.
 
-**Markets** — paste your Finnhub key into `config.js` → `markets.finnhubKey`, push, done. It only
-calls the API 09:30–16:00 ET on weekdays; outside that window it just shows the last close.
+**Markets** — uses Financial Modeling Prep (`config.js` → `markets.fmpKey`, already set), not
+Finnhub — free Finnhub turned out to be delayed/inconsistent in practice despite its marketing, and
+FMP's free tier is honestly the same shape (end-of-day, not live intraday). Nothing more to do here
+for now; genuinely live quotes are planned to route through the speaker bridge (see `/server`) once
+the PC/Pi is set up.
 
 ## Camera — not yet
 
@@ -164,7 +165,7 @@ something (say, the exact coordinates, or Celsius→Fahrenheit):
 
 1. Edit `config.js` on GitHub (or locally, then `git push`).
 2. Push it to the `main` branch.
-3. Cloudflare Pages redeploys automatically within about a minute.
+3. Cloudflare redeploys automatically within about a minute.
 4. The tablet picks it up the next time it reloads (at most, by the next 3am auto-reload).
 
 No app store, no manual install, no touching the tablet at all.
