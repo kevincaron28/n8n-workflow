@@ -178,10 +178,15 @@ body {
   min-height: 0;
   color: var(--ink-mid);
 }
+/* Google's embed is white and can't be restyled from outside — frame it in a dark mat so it reads
+   as a deliberate window rather than a foreign rectangle dropped on the panel. */
 #tile-calendar .calendar-embed-container {
   flex: 1;
   min-height: 0;
-  border-radius: 4px;
+  background: var(--ground-raised);
+  border: 1px solid color-mix(in srgb, var(--ink-mid) 30%, transparent);
+  border-radius: 8px;
+  padding: 6px;
   overflow: hidden;
 }
 #tile-calendar .calendar-embed-container iframe {
@@ -189,6 +194,7 @@ body {
   width: 100%;
   height: 100%;
   border: 0;
+  border-radius: 4px;
 }
 
 /* solunar + markets column — phase 2 / phase 4 */
