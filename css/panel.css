@@ -297,14 +297,15 @@ body {
 #tile-speakers .speaker-btn {
   background: none;
   border: 1px solid var(--ink-mid);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--ink-high);
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   display: grid;
   place-items: center;
   cursor: pointer;
   padding: 0;
+  flex-shrink: 0;
 }
 #tile-speakers .speaker-btn:active {
   background: var(--ink-mid);
