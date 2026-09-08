@@ -149,6 +149,9 @@ function render(root, data, config, meta) {
 }
 
 export function initWeather(config, root) {
+  const locationEl = root.querySelector(".weather-location");
+  if (locationEl) locationEl.textContent = config.location.label ? `— ${config.location.label}` : "";
+
   const poller = createPoller({
     key: "weather",
     intervalMs: config.refresh.weather,

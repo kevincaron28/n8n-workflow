@@ -100,6 +100,19 @@ function moonDiscSvg(fraction, waxing, size = 96) {
   );
 }
 
+const PERIOD_LABELS = {
+  "moon transit": { fr: "lune au zénith", en: "moon at zenith" },
+  "moon underfoot": { fr: "lune au nadir", en: "moon at nadir" },
+  moonrise: { fr: "lever de lune", en: "moonrise" },
+  moonset: { fr: "coucher de lune", en: "moonset" },
+};
+
+function periodKindLabel(label, isFr) {
+  const entry = PERIOD_LABELS[label];
+  if (!entry) return label;
+  return isFr ? entry.fr : entry.en;
+}
+
 function formatCountdown(ms) {
   const totalMin = Math.round(ms / MINUTE_MS);
   const h = Math.floor(totalMin / 60);
@@ -136,17 +149,21 @@ function updateCountdown(root, config, periods) {
   countdownEl.classList.toggle("solunar-active", Boolean(active));
 
   if (active) {
-    countdownEl.textContent = isFr
+    const kind = periodKindLabel(active.label, isFr);
+    const line = isFr
       ? `période active — ${formatCountdown(active.end - now)} restant`
       : `active period — ${formatCountdown(active.end - now)} left`;
+    countdownEl.innerHTML = `<span class="period-kind">${kind}</span>${line}`;
     return;
   }
 
   const upcoming = withWindow.filter((p) => p.start > now).sort((a, b) => a.start - b.start)[0];
   if (upcoming) {
-    countdownEl.textContent = isFr
-      ? `prochaine période dans ${formatCountdown(upcoming.start - now)}`
-      : `next period in ${formatCountdown(upcoming.start - now)}`;
+    const kind = periodKindLabel(upcoming.label, isFr);
+    const line = isFr
+      ? `dans ${formatCountdown(upcoming.start - now)}`
+      : `in ${formatCountdown(upcoming.start - now)}`;
+    countdownEl.innerHTML = `<span class="period-kind">${kind}</span>${line}`;
   } else {
     countdownEl.textContent = "";
   }
