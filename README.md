@@ -43,7 +43,9 @@ Phases 1–4 (weather, solunar/fishing, calendar, markets) are built and configu
   `config.js` → `calendar.calendarId` — nothing needed to be made public, it just needs the
   tablet's browser signed into that Google account.
 
-Camera is still pending on hardware; see `docs/project-brief.md` §9 and §11.
+Camera (`js/camera.js`) is fully built — snapshot polling, live/offline state, tap-to-enlarge —
+and just needs feeds added to `config.js` → `camera.feeds` once hardware is picked; see
+`docs/project-brief.md` §9 and §11.2.
 
 Speaker control (`js/speakers.js`) is built too, but needs the local bridge in
 [`/server`](server/README.md) running and reachable — see its README for setup, then set

@@ -329,13 +329,93 @@ body {
 #tile-cameras {
   background: var(--ground-raised);
   border-radius: 4px;
-  min-height: 0;
+  height: 200px;
   display: flex;
   gap: 16px;
   padding: 8px;
 }
 #tile-cameras[hidden] {
   display: none;
+}
+.camera-feed {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.camera-feed-img {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: block;
+  object-fit: cover;
+  background: var(--ground);
+}
+.camera-feed.is-offline .camera-feed-img {
+  opacity: 0.4;
+}
+.camera-feed-label {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  font-size: 15px;
+  color: var(--ink-high);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.camera-feed-status {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  font-size: 15px;
+  color: var(--down);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* tap-to-enlarge overlay */
+.camera-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px;
+  background: rgba(0, 0, 0, 0.9);
+}
+.camera-overlay[hidden] {
+  display: none;
+}
+.camera-overlay-name {
+  font-size: var(--size-label);
+  color: var(--ink-high);
+}
+.camera-overlay-img {
+  max-width: 90vw;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 4px;
+}
+.camera-overlay-close {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-mid);
+  background: var(--ground-raised);
+  color: var(--ink-high);
+  font-size: 28px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
 }
 
 /* staleness — cached last-good value rendered dimmed with a quiet timestamp, brief §6 */

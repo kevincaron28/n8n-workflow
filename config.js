@@ -32,7 +32,16 @@ export const CONFIG = {
     googleApiKey: "", // only used if you ever switch mode to "api" (see docs/project-brief.md §5.3)
   },
 
-  camera: { enabled: false, feeds: [] }, // TODO: blocked on camera brand/model, brief §11.2
+  // Add a camera by adding a feed here — no code changes needed. Blocked on brand/model, brief
+  // §11.2, so this stays empty for now. Each feed:
+  //   id           stable short id, used as a DOM key — keep it simple (e.g. "front-door")
+  //   name         shown under the thumbnail
+  //   snapshotUrl  LAN http:// URL returning a still image (most IP cameras have one) — required
+  //   refreshMs    how often to re-fetch the snapshot (default: refresh.camera below)
+  //   enabled      set false to keep a feed configured but hidden, without deleting it
+  // Example:
+  //   { id: "front-door", name: "Front door", snapshotUrl: "http://192.168.1.60/snapshot.jpg", enabled: true }
+  camera: { feeds: [] },
 
   speakers: {
     enabled: false, // flip on once the bridge (see /server) is running and reachable

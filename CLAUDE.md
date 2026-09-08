@@ -69,7 +69,7 @@ js/
   solunar.js          fishing/solunar tile (phase 2, built on vendor/suncalc.js)
   calendar.js         Google Calendar tile (phase 3)
   markets.js          FMP (Financial Modeling Prep) markets strip (phase 4)
-  camera.js           camera snapshot tile (phase 5)
+  camera.js           camera snapshot tile — config-driven feeds, tap-to-enlarge (phase 5)
   speakers.js         Google Home / Chromecast speaker tile — talks to /server, not the devices
 vendor/suncalc.js     vendored SunCalc (MIT/BSD-2-Clause) — not loaded from a CDN
 fonts/                self-hosted Archivo + Public Sans (see fonts/README.md)
