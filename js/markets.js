@@ -10,7 +10,14 @@ import { loadCache, saveCache, formatUpdatedAt } from "./store.js";
 const MINUTE_MS = 60 * 1000;
 const MAX_INTERVAL_MS = 30 * MINUTE_MS;
 const CLOSED_CHECK_MS = 5 * MINUTE_MS;
-const CACHE_KEY = "markets";
+// Bumped from "markets" — a tablet that already cached the pre-batch-fix result (only SPY, from
+// when 3 of 4 parallel requests were silently failing) would otherwise keep re-showing that stale,
+// incomplete cache forever outside market hours, since the fetch is normally gated to market hours
+// once *any* cache exists. Changing the key makes it look like no cache exists yet on next load,
+// which triggers an immediate fetch regardless of the clock (see the tick() comment below) and
+// naturally self-heals — this isn't something to keep bumping routinely, just for a fetch/shape
+// change like this one where an old cached value would otherwise be silently wrong forever.
+const CACHE_KEY = "markets-v2";
 
 function isMarketOpen(date, marketHours) {
   const parts = Object.fromEntries(
